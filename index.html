@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mondiale 2026 — Predictor</title>
+<meta name="description" content="Probabilità live, risultati esatti, marcatori, corner e cartellini per ogni partita del Mondiale 2026. Modello statistico + prezzi Polymarket, statistiche reali in tempo reale.">
+<meta name="theme-color" content="#0b1120">
+<meta property="og:title" content="⚽ Mondiale 2026 — Predictor">
+<meta property="og:description" content="Pronostici live con probabilità, risultati esatti, marcatori, corner e cartellini. Modello statistico calibrato sui mercati, aggiornato in tempo reale.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://a.espncdn.com/i/leaguelogos/soccer/500/4.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>">
 <style>
 :root{
   --bg:#0b1120; --bg2:#111a2e; --card:#16213b; --card2:#1c2a4a;
@@ -51,7 +58,17 @@ button.refresh:hover{border-color:var(--acc)}
 .live{color:var(--red);font-weight:700}
 .final{color:var(--acc)}
 .probbar{display:flex;height:8px;border-radius:5px;overflow:hidden;margin-top:10px}
-.probbar div{height:100%}
+.probbar div{height:100%;transition:width .8s ease}
+.statline{display:grid;grid-template-columns:52px 1fr 52px;gap:8px;align-items:center;padding:4px 0;font-size:.85rem}
+.statline .lab{text-align:center;color:var(--mut);font-size:.72rem;grid-column:1/4;margin-bottom:-2px}
+.statline .sv{font-weight:700}
+.statline .sv.away{text-align:right}
+.statbar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--bg)}
+.statbar .sh{background:var(--acc);height:100%}
+.statbar .sa{background:var(--acc2);height:100%;margin-left:auto}
+.kev{display:flex;gap:8px;align-items:baseline;padding:3px 0;font-size:.85rem;border-bottom:1px dashed var(--line)}
+.kev:last-child{border-bottom:none}
+.kev .kmin{color:var(--mut);font-size:.75rem;width:38px;flex-shrink:0}
 .pb1{background:var(--acc)} .pbx{background:var(--warn)} .pb2{background:var(--acc2)}
 .problabels{display:flex;justify-content:space-between;font-size:.75rem;color:var(--mut);margin-top:4px}
 .detail{display:none;background:var(--bg);border-radius:12px;margin-top:14px;padding:16px}
@@ -473,7 +490,99 @@ function pmAligned(e){
 const SPARK_CACHE={};
 function toggleCard(el,id){
   el.classList.toggle("open");
-  if(el.classList.contains("open")) loadSpark(id);
+  if(el.classList.contains("open")){ loadSpark(id); loadStats(id); }
+}
+
+/* ================= STATISTICHE REALI (ESPN summary) ================= */
+const STATS_CACHE={};
+const STAT_IT={possessionPct:"Possesso palla",totalShots:"Tiri totali",shotsOnTarget:"Tiri in porta",
+  wonCorners:"Calci d'angolo",foulsCommitted:"Falli",yellowCards:"Ammoniti",redCards:"Espulsi",
+  saves:"Parate",offsides:"Fuorigioco"};
+async function loadStats(id){
+  const box=document.getElementById("stats-"+id);
+  if(!box) return;
+  const e=EVENTS.find(x=>x.id===id); if(!e) return;
+  const c=STATS_CACHE[id];
+  const maxAge=e.state==="in"?20000:36e5;
+  if(c&&Date.now()-c.t<maxAge){ box.innerHTML=c.html; return; }
+  try{
+    const r=await fetch("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event="+id);
+    const d=await r.json();
+    const html=statsHTML(e,d);
+    STATS_CACHE[id]={t:Date.now(),html};
+    box.innerHTML=html;
+  }catch(_){ box.innerHTML='<span class="mini">Statistiche non disponibili.</span>'; }
+}
+function statsHTML(e,d){
+  const teams=(d.boxscore&&d.boxscore.teams)||[];
+  const home=teams.find(t=>t.homeAway==="home")||teams[0];
+  const away=teams.find(t=>t.homeAway==="away")||teams[1];
+  const nh=itName(e.h), na=itName(e.a);
+  let h="";
+  if(home&&away&&(home.statistics||[]).length){
+    const get=(t,n)=>{ const s=(t.statistics||[]).find(x=>x.name===n); return s?parseFloat(String(s.displayValue).replace("%",""))||0:null; };
+    const disp=(t,n)=>{ const s=(t.statistics||[]).find(x=>x.name===n); return s?s.displayValue:"–"; };
+    // confronto previsto vs reale per corner e gialli
+    const eH=getElo(e.h), eA=getElo(e.a);
+    const [lHp,lAp]=lambdas(eH,eA,e.round);
+    const cPred=cornersModel(eH,eA,lHp,lAp), yPred=cardsModel(eH,eA,e.round);
+    for(const k of ["possessionPct","totalShots","shotsOnTarget","wonCorners","yellowCards","redCards","foulsCommitted","saves","offsides"]){
+      const vH=get(home,k), vA=get(away,k);
+      if(vH==null&&vA==null) continue;
+      const tot=(vH||0)+(vA||0)||1;
+      let extra="";
+      if(k==="wonCorners") extra=' <span class="mini">(attesi '+cPred.tot.toFixed(1)+')</span>';
+      if(k==="yellowCards") extra=' <span class="mini">(attesi '+yPred.lam.toFixed(1)+')</span>';
+      h+='<div class="statline"><span class="lab">'+(STAT_IT[k]||k)+extra+'</span>'+
+         '<span class="sv">'+disp(home,k)+'</span>'+
+         '<div class="statbar"><div class="sh" style="width:'+((vH||0)/tot*100)+'%"></div><div class="sa" style="width:'+((vA||0)/tot*100)+'%"></div></div>'+
+         '<span class="sv away">'+disp(away,k)+'</span></div>';
+    }
+  } else h+='<div class="mini">Statistiche di gioco non ancora disponibili (arrivano dopo il fischio d\'inizio).</div>';
+  // eventi chiave: gol e cartellini con minuto
+  const kevs=(d.keyEvents||[]).filter(k=>/goal|penalty|card|var/i.test((k.type&&k.type.text)||""));
+  if(kevs.length){
+    h+='<div class="mini" style="margin:10px 0 4px"><b>Eventi chiave</b></div>';
+    for(const k of kevs){
+      const t=(k.type&&k.type.text)||"";
+      const icon=/goal|penalty scored/i.test(t)?"⚽":(/red/i.test(t)?"🟥":(/yellow/i.test(t)?"🟨":"🎬"));
+      const who=(k.participants&&k.participants[0]&&k.participants[0].athlete&&k.participants[0].athlete.displayName)||
+                (k.athletesInvolved&&k.athletesInvolved[0]&&k.athletesInvolved[0].displayName)||"";
+      const min=(k.clock&&k.clock.displayValue)||"";
+      h+='<div class="kev"><span class="kmin">'+min+'</span><span>'+icon+' '+(who||t)+
+         (k.team&&k.team.displayName?' <span class="mini">('+itName(k.team.displayName)+')</span>':'')+'</span></div>';
+    }
+  }
+  return h||'<span class="mini">Nessun dato disponibile.</span>';
+}
+
+/* ================= TIMELINE PROBABILITÀ LIVE ================= */
+const WP_HIST={};
+function trackWinProb(){
+  for(const e of EVENTS){
+    if(e.state!=="in"||e.placeholder) continue;
+    const [lH,lA]=lambdas(getElo(e.h),getElo(e.a),e.round);
+    const lo=liveOutcome(e,lH,lA);
+    (WP_HIST[e.id]=WP_HIST[e.id]||[]).push([lo.min,lo.w,lo.d,lo.l]);
+    if(WP_HIST[e.id].length>200) WP_HIST[e.id].shift();
+  }
+}
+function wpChartSVG(id,nh,na){
+  const H=WP_HIST[id];
+  if(!H||H.length<2) return "";
+  let out='<svg viewBox="0 0 300 100" style="width:100%;height:100px" xmlns="http://www.w3.org/2000/svg">';
+  for(const y of [25,50,75]) out+='<line x1="5" y1="'+(90-y*.78)+'" x2="295" y2="'+(90-y*.78)+'" stroke="var(--line)" stroke-width=".5"/>';
+  const t0=H[0][0], t1=Math.max(H[H.length-1][0],t0+1);
+  const X=m=>((m-t0)/(t1-t0)*288+5).toFixed(1), Y=p=>(90-p*78).toFixed(1);
+  const line=(idx,col)=>{ let pts=H.map(x=>X(x[0])+","+Y(x[1+idx])).join(" ");
+    return '<polyline points="'+pts+'" fill="none" stroke="'+col+'" stroke-width="2"/>'; };
+  out+=line(0,"var(--acc)")+line(1,"var(--warn)")+line(2,"var(--acc2)");
+  const last=H[H.length-1];
+  out+='<text x="8" y="10" font-size="9" fill="var(--acc)">'+nh+' '+(last[1]*100).toFixed(0)+'%</text>'+
+       '<text x="8" y="21" font-size="9" fill="var(--warn)">X '+(last[2]*100).toFixed(0)+'%</text>'+
+       '<text x="8" y="32" font-size="9" fill="var(--acc2)">'+na+' '+(last[3]*100).toFixed(0)+'%</text>'+
+       '<text x="292" y="99" font-size="8" fill="var(--mut)" text-anchor="end">minuto '+t0+'→'+t1+'</text></svg>';
+  return out;
 }
 async function loadSpark(id){
   const box=document.getElementById("spark-"+id);
@@ -526,6 +635,7 @@ async function loadData(manual){
     EVENTS=(d.events||[]).map(parseEvent).filter(Boolean);
     EVENTS.forEach(e=>{ e.flash = e.state==="in" && prev[e.id]!=null && prev[e.id]!==(e.hs+"-"+e.as); });
     notifyChanges(prev,prevSt);
+    trackWinProb();
     updateLog();
     document.getElementById("upd").textContent="aggiornato: "+new Date().toLocaleTimeString("it-IT")+
       (PM_TIME?" · Polymarket ✓":" · Polymarket n/d");
@@ -602,7 +712,7 @@ function render(){
   el.innerHTML=html;
   for(const id of openIds){
     const card=el.querySelector('.match[data-id="'+id+'"]');
-    if(card){ card.classList.add("open"); loadSpark(id); }
+    if(card){ card.classList.add("open"); loadSpark(id); loadStats(id); }
   }
 }
 
@@ -699,6 +809,13 @@ function matchCard(e){
     inner+='<div class="detail">'+detailHTML(e,eH,eA,lH,lA,M,oc,liveData,pm)+'</div>';
   } else if(e.placeholder){
     inner+='<div class="problabels"><span class="pill">Accoppiamento da definire — le probabilità appariranno appena note le squadre</span></div>';
+  } else {
+    /* partita finita: dettaglio con statistiche reali ed eventi chiave */
+    let post='<div class="panel"><h4>📊 Statistiche della partita</h4>'+
+      '<div id="stats-'+e.id+'"><span class="mini">Carico statistiche…</span></div></div>';
+    if(WP_HIST[e.id]&&WP_HIST[e.id].length>1)
+      post+='<div class="panel" style="margin-top:12px"><h4>📉 Come è cambiata la probabilità (live)</h4>'+wpChartSVG(e.id,nh,na)+'</div>';
+    inner+='<div class="detail">'+post+'</div>';
   }
   return '<div class="match'+(isLive?' islive':'')+(e.flash?' goal-flash':'')+'" data-id="'+e.id+'" onclick="toggleCard(this,\''+e.id+'\')">'+inner+'</div>';
 }
@@ -745,8 +862,14 @@ function detailHTML(e,eH,eA,lH,lA,Mpre,oc,liveData,pm){
   const scH=scorerProbs(e.h,lHe), scA=scorerProbs(e.a,lAe);
 
   let h="";
-  if(liveData) h+='<div class="livebox">🔴 <b>Probabilità aggiornate live</b> — punteggio '+liveData.hs+'–'+liveData.as+
+  if(liveData){
+    h+='<div class="livebox">🔴 <b>Probabilità aggiornate live</b> — punteggio '+liveData.hs+'–'+liveData.as+
     ' al '+liveData.min+'\''+(liveData.min>90?' (supplementari)':'')+'. Il modello considera solo i gol ancora attesi nei minuti rimanenti.</div>';
+    const wp=wpChartSVG(e.id,nh,na);
+    if(wp) h+='<div class="panel" style="margin-bottom:14px"><h4>📉 Probabilità minuto per minuto</h4>'+wp+'</div>';
+    h+='<div class="panel" style="margin-bottom:14px"><h4>📊 Statistiche live (possesso, tiri, corner, cartellini)</h4>'+
+       '<div id="stats-'+e.id+'"><span class="mini">Carico statistiche live…</span></div></div>';
+  }
 
   h+='<div class="big3">'+
     '<div class="box"><div class="pct" style="color:var(--acc)">'+pct(ocEff.w)+'</div><div class="lab">Vittoria '+nh+'</div><div class="odd">quota equa '+fairOdd(ocEff.w)+'</div></div>'+
