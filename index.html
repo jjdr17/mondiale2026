@@ -256,17 +256,22 @@ const genericScorers = [["Attaccante titolare",.22],["Seconda punta / ala",.16],
 function pois(k,l){ let p=Math.exp(-l); for(let i=1;i<=k;i++) p*=l/i; return p; }
 function winExp(eA,eB){ return 1/(1+Math.pow(10,-(eA-eB)/400)); }
 /* gol totali attesi per fase: i KO avanzati sono più tattici e chiusi */
-const ROUND_BASE={"group-stage":1.32,"round-of-32":1.25,"round-of-16":1.22,"quarterfinals":1.16,
-  "semifinals":1.12,"3rd-place-match":1.40,"final":1.10};
+const ROUND_BASE={"group-stage":1.30,"round-of-32":1.22,"round-of-16":1.18,"quarterfinals":1.12,
+  "semifinals":1.08,"3rd-place-match":1.35,"final":1.05};
+/* mappatura Elo→gol ricalibrata: la differenza gol attesa cresce col LOGARITMO
+   della forza relativa (evita che lo sfavorito collassi e che la favorita
+   venga sopravvalutata rispetto ai mercati reali) */
 function lambdas(eH,eA,round){
   const we=winExp(eH,eA), base=ROUND_BASE[round]||1.30;
-  const lH=Math.max(.15,Math.min(4.2,base*Math.pow(we/.5,.85)));
-  const lA=Math.max(.15,Math.min(4.2,base*Math.pow((1-we)/.5,.85)));
+  const gdiff=0.45*Math.log(we/(1-we));           // diff. gol attesa (0 per pari, ~1.1 per +430 Elo)
+  const tot=base*2+0.15*Math.abs(gdiff);           // le mismatch producono qualche gol in più
+  const lH=Math.max(.25,Math.min(3.6,(tot+gdiff)/2));
+  const lA=Math.max(.25,Math.min(3.6,(tot-gdiff)/2));
   return [lH,lA];
 }
 /* Poisson bivariata + correzione Dixon-Coles (rho) sui punteggi bassi:
    corregge la nota sottostima di 0-0/1-1 e sovrastima di 1-0/0-1 */
-const DC_RHO=-0.13;
+const DC_RHO=-0.16;
 function scoreMatrix(lH,lA,max=8){
   const M=[]; let tot=0;
   for(let i=0;i<=max;i++){ M[i]=[]; for(let j=0;j<=max;j++){
