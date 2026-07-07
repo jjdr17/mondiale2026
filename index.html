@@ -156,7 +156,7 @@ select.h2h-sel:focus{border-color:var(--acc);outline:none}
 <div id="content"><div class="empty">Caricamento dati dal Mondiale 2026…</div></div>
 
 <div class="footer-note">
-  Modello statistico: Poisson bivariata con correzione Dixon-Coles + rating Elo, gol attesi differenziati per fase del torneo, aggiustamento live su punteggio e minuti giocati.<br>
+  Modello v2.1: Poisson bivariata con correzione Dixon-Coles + rating Elo (differenza gol logaritmica, calibrata sui mercati), gol attesi per fase, cartellini e corner su medie storiche dei Mondiali, aggiustamento live su punteggio e minuti (supplementari inclusi).<br>
   Quando disponibili i prezzi Polymarket, le quote nel dettaglio partita sono <b>calibrate</b> (65% mercato + 35% modello) e tutti i mercati derivati sono coerenti con la stima combinata.<br>
   Le probabilità sono stime matematiche, non certezze né consigli di scommessa. "Quota equa" = 1/probabilità (senza margine).<br>
   Liste marcatori: stime della quota gol di squadra per giocatore, basate sulle rose.<br>
@@ -340,8 +340,9 @@ function liveOutcome(e,lH,lA){
   let m=0;
   const c=parseInt(e.clock); if(!isNaN(c)) m=c;
   if(/HT|Half/i.test(e.detail)) m=45;
-  m=Math.min(m,90);
-  const frac=Math.max(0,(90-m)/90);
+  m=Math.min(m,120);
+  /* oltre il 90': siamo ai supplementari — ritmo gol ridotto (~75%) sui minuti restanti fino al 120' */
+  const frac=m<=90 ? Math.max(0,(90-m)/90) : Math.max(0,(120-m)/90*.75);
   const M=scoreMatrix(lH*frac,lA*frac,7);
   const hs=parseInt(e.hs)||0, as=parseInt(e.as)||0;
   let w=0,d=0,l=0;
@@ -352,17 +353,19 @@ function liveOutcome(e,lH,lA){
   const s=w+d+l;
   return {w:w/s,d:d/s,l:l/s,M,hs,as,min:m};
 }
+/* cartellini ricalibrati su medie dei Mondiali reali:
+   ~4 gialli/partita nei gironi, 4.5-5.5 nei KO tirati; rossi ~6-13% (non di più) */
 function cardsModel(eH,eA,round){
   const closeness=1-Math.abs(winExp(eH,eA)-.5)*2;
   const stakes={"group-stage":0,"round-of-32":.3,"round-of-16":.4,"quarterfinals":.6,"semifinals":.7,"3rd-place-match":.2,"final":.9}[round]||0;
-  const lam=3.8+stakes+closeness*1.0;
+  const lam=3.4+stakes+closeness*.9;
   const cum=n=>{let p=0;for(let k=0;k<=n;k++)p+=pois(k,lam);return p;};
   return { lam, over35:1-cum(3), over45:1-cum(4), over55:1-cum(5),
-           red:Math.min(.5,.16+stakes*.12+closeness*.08) };
+           red:Math.min(.2,.055+stakes*.05+closeness*.03) };
 }
 function cornersModel(eH,eA,lH0,lA0){
   const we=winExp(eH,eA);
-  const tot=8.4+(lH0+lA0)*.5;
+  const tot=8.2+(lH0+lA0)*.55;
   const shH=Math.pow(we,.7)/(Math.pow(we,.7)+Math.pow(1-we,.7));
   const lH=tot*shH, lA=tot*(1-shH);
   const cum=(n,l)=>{let p=0;for(let k=0;k<=n;k++)p+=pois(k,l);return p;};
@@ -743,7 +746,7 @@ function detailHTML(e,eH,eA,lH,lA,Mpre,oc,liveData,pm){
 
   let h="";
   if(liveData) h+='<div class="livebox">🔴 <b>Probabilità aggiornate live</b> — punteggio '+liveData.hs+'–'+liveData.as+
-    ' al '+liveData.min+'\'. Il modello considera solo i gol ancora attesi nei minuti rimanenti.</div>';
+    ' al '+liveData.min+'\''+(liveData.min>90?' (supplementari)':'')+'. Il modello considera solo i gol ancora attesi nei minuti rimanenti.</div>';
 
   h+='<div class="big3">'+
     '<div class="box"><div class="pct" style="color:var(--acc)">'+pct(ocEff.w)+'</div><div class="lab">Vittoria '+nh+'</div><div class="odd">quota equa '+fairOdd(ocEff.w)+'</div></div>'+
