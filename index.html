@@ -756,7 +756,16 @@ function render(){
     const card=el.querySelector('.match[data-id="'+id+'"]');
     if(card){ card.classList.add("open"); loadSpark(id); loadStats(id); }
   }
+  /* la partita live si apre da sola al fischio d'inizio (una sola volta: se la chiudi resta chiusa) */
+  for(const e of EVENTS){
+    if(e.state==="in"&&!e.placeholder&&!AUTO_OPENED.has(e.id)){
+      AUTO_OPENED.add(e.id);
+      const card=el.querySelector('.match[data-id="'+e.id+'"]');
+      if(card&&!card.classList.contains("open")){ card.classList.add("open"); loadSpark(e.id); loadStats(e.id); }
+    }
+  }
 }
+const AUTO_OPENED=new Set();
 
 function pickOfDay(evs){
   let cands=evs.filter(e=>!e.placeholder&&e.state==="pre");
