@@ -173,7 +173,7 @@ select.h2h-sel:focus{border-color:var(--acc);outline:none}
 <div id="content"><div class="empty">Caricamento dati dal Mondiale 2026…</div></div>
 
 <div class="footer-note">
-  Modello v2.1: Poisson bivariata con correzione Dixon-Coles + rating Elo (differenza gol logaritmica, calibrata sui mercati), gol attesi per fase, cartellini e corner su medie storiche dei Mondiali, aggiustamento live su punteggio e minuti (supplementari inclusi).<br>
+  Modello v3.1: Poisson bivariata con correzione Dixon-Coles + rating <b>Elo dinamici</b> che imparano dai risultati reali del torneo, differenza gol logaritmica calibrata sui mercati, gol attesi per fase, cartellini e corner su medie storiche, aggiustamento live su punteggio e minuti (supplementari inclusi).<br>
   Quando disponibili i prezzi Polymarket, le quote nel dettaglio partita sono <b>calibrate</b> (65% mercato + 35% modello) e tutti i mercati derivati sono coerenti con la stima combinata.<br>
   Le probabilità sono stime matematiche, non certezze né consigli di scommessa. "Quota equa" = 1/probabilità (senza margine).<br>
   Liste marcatori: stime della quota gol di squadra per giocatore, basate sulle rose.<br>
@@ -203,16 +203,57 @@ const ELO = {
 "Bosnia and Herzegovina":1690,"Congo":1650
 };
 const DEFAULT_ELO = 1620;
-let ELO_OVR={}, W_MARKET=.65;
+let ELO_OVR={}, W_MARKET=.65, ELO_TUNED=null, USE_TUNED=true;
 /* indice normalizzato: trova il rating anche se ESPN/Polymarket scrivono il nome in modo diverso */
 const ELO_NORM={};
 for(const k in ELO) ELO_NORM[normTeam(k)]=ELO[k];
-const getElo=t=>{
-  if(ELO_OVR[t]!=null) return ELO_OVR[t];
+const baseElo=t=>{
   if(ELO[t]!=null) return ELO[t];
   const n=ELO_NORM[normTeam(t)];
   return n!=null?n:DEFAULT_ELO;
 };
+const getElo=t=>{
+  if(ELO_OVR[t]!=null) return ELO_OVR[t];
+  if(USE_TUNED&&ELO_TUNED&&ELO_TUNED[t]!=null) return Math.round(ELO_TUNED[t]);
+  return baseElo(t);
+};
+/* ELO DINAMICO: il modello impara dai risultati reali del torneo.
+   Aggiornamento Elo classico (K=35, moltiplicatore per scarto gol);
+   le vittorie ai rigori/supplementari pesano meno di quelle nei 90'. */
+function tuneElo(){
+  const done=EVENTS.filter(e=>e.state==="post"&&!e.placeholder&&e.hs!==""&&e.hs!=null)
+    .sort((a,b)=>a.date-b.date);
+  const R={};
+  const cur=t=>R[t]!=null?R[t]:baseElo(t);
+  for(const e of done){
+    const hs=+e.hs, as=+e.as;
+    if(isNaN(hs)||isNaN(as)) continue;
+    const rH=cur(e.h), rA=cur(e.a);
+    const we=1/(1+Math.pow(10,-(rH-rA)/400));
+    let res=hs>as?1:(hs<as?0:.5);
+    if(hs===as&&(e.hWin||e.aWin)) res=e.hWin?.7:.3;   // decisa oltre i 90'
+    const gd=Math.abs(hs-as);
+    const G=gd<=1?1:(gd===2?1.5:(11+gd)/8);
+    const delta=35*G*(res-we);
+    R[e.h]=rH+delta; R[e.a]=rA-delta;
+  }
+  ELO_TUNED=R;
+}
+/* forma nel torneo: sequenza V/X/S (minuscola = decisa ai rigori/supplementari) */
+function formOf(team){
+  return EVENTS.filter(e=>e.state==="post"&&!e.placeholder&&(e.h===team||e.a===team))
+    .sort((a,b)=>a.date-b.date)
+    .map(e=>{
+      const hs=+e.hs, as=+e.as, home=e.h===team;
+      let r=hs===as?"X":((hs>as)===home?"V":"S");
+      if(hs===as&&(e.hWin||e.aWin)) r=(e.hWin===home)?"v":"s";
+      return r;
+    });
+}
+const formHTML=f=>f.map(r=>{
+  const c=r.toUpperCase()==="V"?"var(--acc)":(r.toUpperCase()==="S"?"var(--red)":"var(--warn)");
+  return '<span style="color:'+c+';font-weight:800" title="'+(r==="v"?"vinta ai rigori/suppl.":(r==="s"?"persa ai rigori/suppl.":""))+'">'+r.toUpperCase()+'</span>';
+}).join(" ");
 
 /* ================= NOMI ITALIANI ================= */
 const IT = {"Spain":"Spagna","France":"Francia","England":"Inghilterra","Brazil":"Brasile",
@@ -635,6 +676,7 @@ async function loadData(manual){
     EVENTS=(d.events||[]).map(parseEvent).filter(Boolean);
     EVENTS.forEach(e=>{ e.flash = e.state==="in" && prev[e.id]!=null && prev[e.id]!==(e.hs+"-"+e.as); });
     notifyChanges(prev,prevSt);
+    tuneElo();
     trackWinProb();
     updateLog();
     document.getElementById("upd").textContent="aggiornato: "+new Date().toLocaleTimeString("it-IT")+
@@ -880,6 +922,20 @@ function detailHTML(e,eH,eA,lH,lA,Mpre,oc,liveData,pm){
   if(adv) h+='<div class="advance"><span>🎯 Passaggio del turno (incl. supplementari/rigori)</span>'+
     '<span><b>'+nh+' '+pct(adv.h)+'</b> · <b>'+na+' '+pct(adv.a)+'</b></span></div>';
 
+  /* forma nel torneo */
+  const fH=formOf(e.h), fA=formOf(e.a);
+  if(fH.length||fA.length)
+    h+='<div class="mini" style="margin:-4px 0 12px;text-align:center">Forma torneo — '+nh+': '+
+       (fH.length?formHTML(fH):"–")+' · '+na+': '+(fA.length?formHTML(fA):"–")+'</div>';
+
+  /* prossimo gol (solo live) */
+  if(liveData){
+    const rem=liveData.min<=90?Math.max(0,(90-liveData.min)/90):Math.max(0,(120-liveData.min)/90*.75);
+    const lHr=lH*rem, lAr=lA*rem, p0=Math.exp(-(lHr+lAr));
+    h+='<div class="advance" style="margin-bottom:14px"><span>⚽ Prossimo gol</span>'+
+       '<span><b>'+nh+' '+pct((1-p0)*(lHr/(lHr+lAr||1)))+'</b> · <b>'+na+' '+pct((1-p0)*(lAr/(lHr+lAr||1)))+'</b> · nessuno '+pct(p0)+'</span></div>';
+  }
+
   /* breakdown: come si decide la qualificazione */
   let decideHTML="";
   if(adv&&!liveData){
@@ -941,6 +997,18 @@ function detailHTML(e,eH,eA,lH,lA,Mpre,oc,liveData,pm){
      '<div class="row"><span>12 (niente pareggio)</span><span class="v">'+pq(ocEff.w+ocEff.l)+'</span></div>'+
      (knockout?'<div class="row"><span>Si va ai supplementari (X al 90\')</span><span class="v">'+pq(ocEff.d)+'</span></div>':'')+
      '</div>';
+
+  if(!liveData){
+    /* primo tempo: ~44% dei gol arriva prima dell'intervallo */
+    const oht=outcomes(scoreMatrix(lHe*.44,lAe*.44,5));
+    const Mht=scoreMatrix(lHe*.44,lAe*.44,5);
+    h+='<div class="panel"><h4>Primo tempo (risultato all\'intervallo)</h4>'+
+       '<div class="row"><span>1 PT ('+nh+' avanti)</span><span class="v">'+pq(oht.w)+'</span></div>'+
+       '<div class="row"><span>X PT</span><span class="v">'+pq(oht.d)+'</span></div>'+
+       '<div class="row"><span>2 PT ('+na+' avanti)</span><span class="v">'+pq(oht.l)+'</span></div>'+
+       '<div class="row"><span>Over 0.5 PT (gol nel 1º tempo)</span><span class="v">'+pq(overUnder(Mht,0.5,0))+'</span></div>'+
+       '<div class="row"><span>Over 1.5 PT</span><span class="v">'+pq(overUnder(Mht,1.5,0))+'</span></div></div>';
+  }
 
   h+='<div class="panel"><h4>Marcatori probabili (almeno 1 gol · doppietta)</h4>';
   const scRow=(n,p,p2)=>'<div class="row"><span>'+n+'</span><div class="bar-wrap"><div class="bar-fill" style="width:'+Math.min(100,p*160)+'%"></div></div><span class="v">'+pct(p)+' <span class="mini">2+: '+pct(p2)+'</span></span></div>';
@@ -1228,15 +1296,17 @@ function valueHTML(){
   return h;
 }
 
-/* ================= SCHEDINA ================= */
+/* ================= SCHEDINA (persistente) ================= */
 let SLIP={}, PRED_MINCONF=false;
+try{ SLIP=JSON.parse(localStorage.getItem("wc26_slip")||"{}"); }catch(_){}
+function saveSlip(){ try{ localStorage.setItem("wc26_slip",JSON.stringify(SLIP)); }catch(_){} }
 function togglePick(el){
   const k=el.dataset.k;
   if(SLIP[k]) delete SLIP[k];
   else SLIP[k]={label:decodeURIComponent(el.dataset.l),match:decodeURIComponent(el.dataset.m),p:+el.dataset.p};
-  render();
+  saveSlip(); render();
 }
-function removePick(k){ delete SLIP[k]; render(); }
+function removePick(k){ delete SLIP[k]; saveSlip(); render(); }
 function togglePredFilter(){ PRED_MINCONF=!PRED_MINCONF; render(); }
 async function copySlip(ev){
   const items=Object.values(SLIP);
@@ -1265,7 +1335,7 @@ function slipHTML(){
      '<span class="v" style="color:var(--acc)">'+pct(prod)+' · quota equa '+fairOdd(prod)+'</span></div>'+
      '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'+
      '<button class="refresh" onclick="copySlip(event)">📋 Copia schedina</button>'+
-     '<button class="refresh" onclick="SLIP={};render()">🗑 Svuota</button></div>'+
+     '<button class="refresh" onclick="SLIP={};saveSlip();render()">🗑 Svuota</button></div>'+
      '<div class="mini" style="margin-top:6px">Nota: selezioni della stessa partita sono correlate tra loro, la combinata le tratta come indipendenti.</div></div>';
   return h;
 }
@@ -1581,6 +1651,9 @@ function settingsHTML(){
   const teams=[...new Set(EVENTS.filter(e=>!e.placeholder).flatMap(e=>[e.h,e.a]))]
     .sort((a,b)=>getElo(b)-getElo(a));
   let h='<div class="round-title">⚙️ Impostazioni modello</div>';
+  h+='<div class="set-panel"><b>🧠 Elo dinamico</b>'+
+     '<div class="mini" style="margin:6px 0 8px">Il modello aggiorna i rating con i risultati reali del torneo (aggiornamento Elo classico, K=35, pesato per scarto gol). Disattiva per usare solo i rating base.</div>'+
+     '<label style="font-size:.9rem"><input type="checkbox" id="tunedchk"'+(USE_TUNED?" checked":"")+'> Impara dai risultati del torneo</label></div>';
   h+='<div class="set-panel"><b>Peso del mercato Polymarket nelle quote calibrate</b>'+
      '<div class="mini" style="margin:6px 0 10px">0% = solo modello Elo · 100% = solo prezzi di mercato. Vale per il dettaglio partita (risultati esatti, gol, marcatori, corner).</div>'+
      '<input type="range" id="wslider" min="0" max="100" step="5" value="'+Math.round(W_MARKET*100)+'"> '+
@@ -1588,14 +1661,19 @@ function settingsHTML(){
   h+='<div class="round-title">Rating Elo delle squadre <span class="mini">(modificabili — le probabilità si ricalcolano subito)</span></div>';
   if(!teams.length) return h+'<div class="empty">Nessuna squadra caricata.</div>';
   h+='<div class="set-panel">';
-  for(const t of teams)
-    h+='<div class="row"><span>'+itName(t)+(ELO_OVR[t]!=null?' <span class="pill">modificato</span>':'')+'</span>'+
-       '<input class="elo-in" data-team="'+encodeURIComponent(t)+'" type="number" step="10" min="1000" max="2400" value="'+getElo(t)+'"></div>';
+  for(const t of teams){
+    const b=baseElo(t), g=getElo(t);
+    const dyn=ELO_OVR[t]==null&&g!==b?' <span class="mini" style="color:'+(g>b?"var(--acc)":"var(--red)")+'">'+(g>b?"▲+":"▼")+(g-b)+' dal torneo</span>':'';
+    h+='<div class="row"><span>'+itName(t)+(ELO_OVR[t]!=null?' <span class="pill">modificato</span>':dyn)+'</span>'+
+       '<input class="elo-in" data-team="'+encodeURIComponent(t)+'" type="number" step="10" min="1000" max="2400" value="'+g+'"></div>';
+  }
   h+='</div><button class="refresh" id="eloreset">↺ Ripristina rating originali e peso 65%</button>'+
      '<div class="mini" style="margin-top:10px">Le modifiche restano attive finché la pagina è aperta.</div>';
   return h;
 }
 function bindSettings(){
+  const tc=document.getElementById("tunedchk");
+  if(tc) tc.addEventListener("change",()=>{ USE_TUNED=tc.checked; render(); });
   const ws=document.getElementById("wslider");
   if(ws) ws.addEventListener("input",()=>{
     W_MARKET=ws.value/100;
