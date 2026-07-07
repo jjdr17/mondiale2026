@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mondiale 2026 — Predictor</title>
+<style>
+:root{
+  --bg:#0b1120; --bg2:#111a2e; --card:#16213b; --card2:#1c2a4a;
+  --acc:#22d3a5; --acc2:#4f8cff; --warn:#f5b942; --red:#ff5d73;
+  --txt:#e8eefc; --mut:#8fa3c8; --line:#24345a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:linear-gradient(160deg,var(--bg) 0%,var(--bg2) 100%);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 16px 80px}
+header{text-align:center;margin-bottom:16px}
+header h1{font-size:clamp(1.5rem,4vw,2.3rem);font-weight:800;
+  background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{color:var(--mut);margin-top:6px;font-size:.92rem}
+.status-bar{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:12px;font-size:.85rem;color:var(--mut)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--acc);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+button.refresh{background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:8px;
+  padding:6px 14px;cursor:pointer;font-size:.85rem}
+button.refresh:hover{border-color:var(--acc)}
+#nextinfo{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 16px;
+  margin:14px auto 0;display:inline-block;font-size:.88rem;color:var(--mut)}
+#nextinfo b{color:var(--txt)}
+.controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:18px 0;align-items:center;
+  position:sticky;top:0;z-index:10;background:rgba(11,17,32,.88);backdrop-filter:blur(8px);
+  padding:10px 6px;border-radius:0 0 14px 14px}
+.tab{padding:8px 18px;border-radius:20px;background:var(--card);border:1px solid var(--line);
+  cursor:pointer;font-size:.9rem;color:var(--mut);user-select:none}
+.tab.active{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#06131f;font-weight:700;border-color:transparent}
+#search{background:var(--card);border:1px solid var(--line);border-radius:20px;color:var(--txt);
+  padding:8px 16px;font-size:.9rem;width:180px;outline:none}
+#search:focus{border-color:var(--acc)}
+.round-title{font-size:1.02rem;font-weight:700;color:var(--acc);margin:22px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.match{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;
+  cursor:pointer;transition:.15s}
+.match:hover{border-color:var(--acc)}
+.match.islive{border-color:var(--red);box-shadow:0 0 12px rgba(255,93,115,.15)}
+.match .top{display:flex;justify-content:space-between;color:var(--mut);font-size:.78rem;margin-bottom:8px;gap:8px;flex-wrap:wrap}
+.match .teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
+.tside{display:flex;align-items:center;gap:8px;min-width:0}
+.tside.away{justify-content:flex-end}
+.tside img{width:26px;height:26px;object-fit:contain;flex-shrink:0}
+.tname{font-weight:700;font-size:1.02rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score{font-size:1.25rem;font-weight:800;background:var(--bg);padding:4px 14px;border-radius:8px;white-space:nowrap}
+.live{color:var(--red);font-weight:700}
+.final{color:var(--acc)}
+.probbar{display:flex;height:8px;border-radius:5px;overflow:hidden;margin-top:10px}
+.probbar div{height:100%}
+.pb1{background:var(--acc)} .pbx{background:var(--warn)} .pb2{background:var(--acc2)}
+.problabels{display:flex;justify-content:space-between;font-size:.75rem;color:var(--mut);margin-top:4px}
+.detail{display:none;background:var(--bg);border-radius:12px;margin-top:14px;padding:16px}
+.match.open .detail{display:block}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.panel{background:var(--card2);border-radius:10px;padding:14px}
+.panel h4{font-size:.85rem;color:var(--acc);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em}
+.row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:.9rem;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:none}
+.row .v{font-weight:700}
+.mini{font-size:.78rem;color:var(--mut)}
+.bar-wrap{background:var(--bg);border-radius:4px;height:7px;flex:1;margin:0 10px;overflow:hidden;max-width:120px}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.big3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.big3 .box{background:var(--card2);border-radius:10px;text-align:center;padding:12px 6px}
+.big3 .box .pct{font-size:1.4rem;font-weight:800}
+.big3 .box .lab{font-size:.75rem;color:var(--mut);margin-top:2px}
+.big3 .box .odd{font-size:.72rem;color:var(--mut);margin-top:3px}
+.advance{background:linear-gradient(90deg,rgba(34,211,165,.12),rgba(79,140,255,.12));
+  border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:14px;
+  display:flex;justify-content:space-between;font-size:.92rem;flex-wrap:wrap;gap:6px}
+.livebox{background:rgba(255,93,115,.1);border:1px solid var(--red);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.9rem}
+.heat{border-collapse:collapse;width:100%;margin-top:4px}
+.heat td,.heat th{text-align:center;padding:5px 2px;font-size:.78rem;border:1px solid var(--line)}
+.heat th{color:var(--mut);font-weight:600;background:var(--bg)}
+.heat td{font-weight:600}
+.heat td.best{outline:2px solid var(--warn)}
+.pmbar{display:flex;height:8px;border-radius:5px;overflow:hidden;margin-top:8px}
+.pmbar div{height:100%}
+.pm1{background:#b18cff} .pmx{background:#6b7a99} .pm2{background:#7c5cd9}
+.pmlab{display:flex;justify-content:space-between;font-size:.75rem;color:#b18cff;margin-top:4px}
+.vsrow{display:grid;grid-template-columns:1.2fr 1fr 1fr .9fr;gap:6px;padding:6px 0;font-size:.88rem;border-bottom:1px dashed var(--line);align-items:center}
+.vsrow:last-child{border-bottom:none}
+.vsrow .hd{color:var(--mut);font-size:.75rem}
+.value-up{color:var(--acc);font-weight:700}
+.value-dn{color:var(--red);font-weight:700}
+.champ-row .cpm{width:120px;text-align:right;color:#b18cff;font-size:.82rem;font-weight:700}
+.champ-path{background:var(--bg);border-radius:8px;padding:8px 14px;margin:-4px 0 8px;font-size:.8rem;color:var(--mut)}
+@media(max-width:560px){ .champ-row .cpm{width:70px;font-size:.75rem} }
+@keyframes goalflash{0%,100%{border-color:var(--line)}25%,75%{border-color:var(--warn);box-shadow:0 0 18px rgba(245,185,66,.35)}}
+.goal-flash{animation:goalflash 1.2s ease-in-out 4}
+.goal-badge{background:var(--warn);color:#06131f;font-weight:800;border-radius:6px;padding:2px 8px;font-size:.75rem;margin-left:6px}
+.bk-match{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:8px}
+.bk-match .bk-head{display:flex;justify-content:space-between;font-size:.75rem;color:var(--mut);margin-bottom:6px}
+.bk-side{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:.92rem}
+.bk-side .nm{font-weight:700;display:flex;align-items:center;gap:7px}
+.bk-side img{width:20px;height:20px;object-fit:contain}
+.bk-side .pr{color:var(--acc);font-weight:700;font-size:.85rem}
+.bk-side.loser .nm{color:var(--mut);font-weight:500;text-decoration:line-through}
+.bk-cand{font-size:.78rem;color:var(--mut);padding:2px 0 2px 4px}
+.bk-cand b{color:var(--txt)}
+input.elo-in{background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--txt);
+  padding:5px 10px;font-size:.9rem;width:92px;text-align:right}
+input.elo-in:focus{border-color:var(--acc);outline:none}
+input[type=range]{accent-color:var(--acc);width:100%;max-width:400px}
+select.h2h-sel{background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--txt);
+  padding:9px 14px;font-size:.95rem;min-width:170px}
+select.h2h-sel:focus{border-color:var(--acc);outline:none}
+.set-panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.footer-note{margin-top:36px;font-size:.78rem;color:var(--mut);text-align:center;line-height:1.6}
+.err{background:rgba(255,93,115,.12);border:1px solid var(--red);border-radius:10px;padding:14px;margin:14px 0;font-size:.9rem}
+.empty{color:var(--mut);text-align:center;padding:30px;font-size:.95rem}
+.pill{background:var(--bg);border-radius:6px;padding:2px 8px;font-size:.72rem;color:var(--mut)}
+.champ-row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:12px 16px;margin-bottom:8px}
+.champ-row img{width:30px;height:30px;object-fit:contain}
+.champ-row .cn{font-weight:700;width:150px}
+.champ-row .cbar{flex:1;background:var(--bg);height:14px;border-radius:7px;overflow:hidden}
+.champ-row .cbar div{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.champ-row .cp{font-weight:800;width:64px;text-align:right}
+.champ-row .co{width:70px;text-align:right;color:var(--mut);font-size:.8rem}
+@media(max-width:560px){ .tname{font-size:.88rem} .score{font-size:1.05rem} .tside img{width:20px;height:20px}
+  .champ-row .cn{width:110px;font-size:.85rem} .champ-row .co{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>⚽ Mondiale 2026 — Predictor</h1>
+  <p>Probabilità live, risultati esatti, marcatori, cartellini e corner — aggiornamento automatico</p>
+  <div class="status-bar">
+    <span><span class="dot"></span> <span id="upd">caricamento…</span></span>
+    <button class="refresh" onclick="loadData(true)">↻ Aggiorna ora</button>
+    <button class="refresh" id="notifybtn" onclick="toggleNotify()">🔕 Notifiche gol</button>
+  </div>
+  <div id="nextinfo" style="display:none"></div>
+</header>
+
+<div class="controls" id="tabs">
+  <div class="tab active" data-f="upcoming">Prossime & Live</div>
+  <div class="tab" data-f="finished">Risultati</div>
+  <div class="tab" data-f="all">Tutte</div>
+  <div class="tab" data-f="bracket">🗂 Tabellone</div>
+  <div class="tab" data-f="champion">🏆 Chi vince?</div>
+  <div class="tab" data-f="value">💎 Value</div>
+  <div class="tab" data-f="h2h">⚔️ H2H</div>
+  <div class="tab" data-f="history">📊 Storico</div>
+  <div class="tab" data-f="settings">⚙️</div>
+  <input id="search" type="text" placeholder="🔍 cerca squadra…">
+</div>
+
+<div id="content"><div class="empty">Caricamento dati dal Mondiale 2026…</div></div>
+
+<div class="footer-note">
+  Modello statistico: Poisson bivariata con correzione Dixon-Coles + rating Elo, gol attesi differenziati per fase del torneo, aggiustamento live su punteggio e minuti giocati.<br>
+  Quando disponibili i prezzi Polymarket, le quote nel dettaglio partita sono <b>calibrate</b> (65% mercato + 35% modello) e tutti i mercati derivati sono coerenti con la stima combinata.<br>
+  Le probabilità sono stime matematiche, non certezze né consigli di scommessa. "Quota equa" = 1/probabilità (senza margine).<br>
+  Liste marcatori: stime della quota gol di squadra per giocatore, basate sulle rose.<br>
+  Le probabilità di vittoria finale sono propagate lungo il tabellone reale a eliminazione diretta (con fallback Monte Carlo).<br>
+  Le previsioni pre-match vengono salvate localmente e verificate nella tab Storico (1X2, risultati esatti, punteggio di Brier vs Polymarket).<br>
+  Dati partite: ESPN · Quotazioni di mercato: Polymarket (probabilità implicite dai prezzi, normalizzate) · refresh automatico ogni 60 s (15 s durante le partite live).
+</div>
+</div>
+
+<script>
+/* ================= RATING ELO (stime metà 2026) ================= */
+const ELO = {
+"Spain":2180,"Argentina":2150,"France":2090,"England":2060,"Brazil":2040,"Portugal":2030,
+"Netherlands":2000,"Germany":1970,"Colombia":1950,"Uruguay":1940,"Croatia":1930,"Belgium":1920,
+"Italy":1910,"Morocco":1900,"Japan":1880,"Ecuador":1870,"Mexico":1860,"Norway":1860,
+"Switzerland":1850,"Denmark":1845,"United States":1840,"USA":1840,"Turkey":1830,"Türkiye":1830,"Senegal":1830,
+"Austria":1820,"Iran":1780,"South Korea":1780,"Ukraine":1780,"Serbia":1770,"Poland":1770,
+"Algeria":1760,"Scotland":1750,"Sweden":1750,"Australia":1745,"Paraguay":1790,"Canada":1790,
+"Panama":1730,"Wales":1720,"Nigeria":1720,"Egypt":1720,"Ivory Coast":1740,"Côte d'Ivoire":1740,
+"Tunisia":1700,"Venezuela":1700,"Ghana":1690,"Costa Rica":1680,"Greece":1740,"Czechia":1740,
+"Cameroon":1700,"Mali":1690,"Burkina Faso":1650,"South Africa":1650,"Peru":1700,
+"Chile":1720,"Uzbekistan":1640,"Bolivia":1640,"Saudi Arabia":1630,"Iraq":1620,"Qatar":1580,
+"Jordan":1600,"United Arab Emirates":1590,"New Zealand":1590,"Honduras":1610,"Jamaica":1600,
+"Cape Verde":1560,"Curacao":1560,"Curaçao":1560,"Haiti":1540,"New Caledonia":1350,"Suriname":1520,
+"Slovakia":1740,"Slovenia":1730,"Romania":1720,"Hungary":1730,"Ireland":1710,
+"Republic of Ireland":1710,"North Macedonia":1660,"Albania":1680,"Kosovo":1650,"Finland":1660,
+"Bosnia and Herzegovina":1690,"Congo":1650
+};
+const DEFAULT_ELO = 1620;
+let ELO_OVR={}, W_MARKET=.65;
+/* indice normalizzato: trova il rating anche se ESPN/Polymarket scrivono il nome in modo diverso */
+const ELO_NORM={};
+for(const k in ELO) ELO_NORM[normTeam(k)]=ELO[k];
+const getElo=t=>{
+  if(ELO_OVR[t]!=null) return ELO_OVR[t];
+  if(ELO[t]!=null) return ELO[t];
+  const n=ELO_NORM[normTeam(t)];
+  return n!=null?n:DEFAULT_ELO;
+};
+
+/* ================= NOMI ITALIANI ================= */
+const IT = {"Spain":"Spagna","France":"Francia","England":"Inghilterra","Brazil":"Brasile",
+"Germany":"Germania","Netherlands":"Paesi Bassi","Portugal":"Portogallo","Belgium":"Belgio",
+"Croatia":"Croazia","Morocco":"Marocco","Mexico":"Messico","Japan":"Giappone","Switzerland":"Svizzera",
+"Norway":"Norvegia","Egypt":"Egitto","Cape Verde":"Capo Verde","Ivory Coast":"Costa d'Avorio",
+"Côte d'Ivoire":"Costa d'Avorio","South Korea":"Corea del Sud","Saudi Arabia":"Arabia Saudita",
+"United States":"Stati Uniti","USA":"Stati Uniti","Turkey":"Turchia","Türkiye":"Turchia",
+"Denmark":"Danimarca","Sweden":"Svezia","Poland":"Polonia","Austria":"Austria","Ukraine":"Ucraina",
+"Serbia":"Serbia","Scotland":"Scozia","Wales":"Galles","Ireland":"Irlanda","Republic of Ireland":"Irlanda",
+"Greece":"Grecia","Czechia":"Rep. Ceca","Hungary":"Ungheria","Romania":"Romania","Slovakia":"Slovacchia",
+"Slovenia":"Slovenia","Finland":"Finlandia","Albania":"Albania","Italy":"Italia","Uruguay":"Uruguay",
+"Colombia":"Colombia","Ecuador":"Ecuador","Peru":"Perù","Chile":"Cile","Paraguay":"Paraguay",
+"Venezuela":"Venezuela","Bolivia":"Bolivia","Panama":"Panama","Costa Rica":"Costa Rica",
+"Honduras":"Honduras","Jamaica":"Giamaica","Canada":"Canada","Haiti":"Haiti","Curacao":"Curaçao",
+"Tunisia":"Tunisia","Algeria":"Algeria","Nigeria":"Nigeria","Cameroon":"Camerun","Senegal":"Senegal",
+"Ghana":"Ghana","Mali":"Mali","South Africa":"Sudafrica","Qatar":"Qatar","Iran":"Iran","Iraq":"Iraq",
+"Jordan":"Giordania","Uzbekistan":"Uzbekistan","Australia":"Australia","New Zealand":"Nuova Zelanda",
+"United Arab Emirates":"Emirati Arabi"};
+const itName = n => IT[n] || n;
+
+/* ================= MARCATORI (quota stimata dei gol di squadra) ================= */
+const SCORERS = {
+"Argentina":[["L. Messi",.28],["J. Álvarez",.26],["L. Martínez",.24],["A. Mac Allister",.10]],
+"France":[["K. Mbappé",.34],["O. Dembélé",.20],["M. Thuram",.18],["R. Kolo Muani",.14]],
+"England":[["H. Kane",.32],["J. Bellingham",.18],["B. Saka",.18],["C. Palmer",.14],["P. Foden",.12]],
+"Brazil":[["Vinícius Jr",.26],["Raphinha",.20],["Rodrygo",.18],["Endrick",.14]],
+"Spain":[["L. Yamal",.24],["N. Williams",.18],["M. Oyarzabal",.16],["D. Olmo",.16],["Pedri",.10]],
+"Portugal":[["C. Ronaldo",.26],["R. Leão",.18],["B. Fernandes",.16],["G. Ramos",.14],["J. Félix",.12]],
+"Norway":[["E. Haaland",.40],["A. Sørloth",.16],["M. Ødegaard",.14],["A. Nusa",.10]],
+"Mexico":[["S. Giménez",.24],["R. Jiménez",.22],["H. Lozano",.14]],
+"United States":[["C. Pulisic",.26],["F. Balogun",.18],["T. Weah",.14],["G. Reyna",.10]],
+"Belgium":[["R. Lukaku",.30],["K. De Bruyne",.16],["L. Openda",.14],["J. Doku",.14]],
+"Canada":[["J. David",.30],["A. Davies",.18],["C. Larin",.14]],
+"Morocco":[["Y. En-Nesyri",.24],["B. Díaz",.18],["A. El Kaabi",.14],["H. Ziyech",.12],["A. Hakimi",.10]],
+"Colombia":[["L. Díaz",.28],["J. Durán",.18],["James Rodríguez",.16]],
+"Paraguay":[["M. Almirón",.18],["A. Sanabria",.16],["J. Enciso",.16]],
+"Egypt":[["M. Salah",.34],["O. Marmoush",.24],["Mostafa Mohamed",.12]],
+"Australia":[["M. Boyle",.14],["J. Irvine",.14],["M. Duke",.12]],
+"Germany":[["J. Musiala",.22],["F. Wirtz",.20],["K. Havertz",.20],["N. Füllkrug",.16]],
+"Netherlands":[["M. Depay",.22],["C. Gakpo",.20],["X. Simons",.14],["W. Weghorst",.12]],
+"Croatia":[["A. Kramarić",.18],["A. Budimir",.16],["L. Modrić",.10],["I. Perišić",.10]],
+"Japan":[["K. Mitoma",.16],["T. Kubo",.16],["A. Ueda",.16],["T. Minamino",.12]],
+"Ghana":[["M. Kudus",.24],["A. Semenyo",.20],["J. Ayew",.12]],
+"Uruguay":[["D. Núñez",.28],["F. Valverde",.14],["F. Pellistri",.10]],
+"Switzerland":[["B. Embolo",.20],["R. Vargas",.14],["D. Ndoye",.14]],
+"Senegal":[["N. Jackson",.20],["S. Mané",.18],["I. Sarr",.16],["B. Dia",.14]],
+"Ecuador":[["E. Valencia",.20],["G. Plata",.16],["K. Rodríguez",.14]],
+"South Korea":[["H. Son",.28],["H. Hwang",.16],["K. Lee",.16]],
+"Italy":[["M. Retegui",.22],["G. Scamacca",.16],["F. Chiesa",.14],["N. Barella",.10]],
+"Denmark":[["R. Højlund",.24],["C. Eriksen",.14],["M. Damsgaard",.12]],
+"Turkey":[["K. Aktürkoğlu",.18],["A. Güler",.18],["B. Yılmaz",.12]],
+"Türkiye":[["K. Aktürkoğlu",.18],["A. Güler",.18],["B. Yılmaz",.12]]
+};
+const genericScorers = [["Attaccante titolare",.22],["Seconda punta / ala",.16],["Centrocampista offensivo",.12]];
+
+/* ================= MATEMATICA ================= */
+function pois(k,l){ let p=Math.exp(-l); for(let i=1;i<=k;i++) p*=l/i; return p; }
+function winExp(eA,eB){ return 1/(1+Math.pow(10,-(eA-eB)/400)); }
+/* gol totali attesi per fase: i KO avanzati sono più tattici e chiusi */
+const ROUND_BASE={"group-stage":1.32,"round-of-32":1.25,"round-of-16":1.22,"quarterfinals":1.16,
+  "semifinals":1.12,"3rd-place-match":1.40,"final":1.10};
+function lambdas(eH,eA,round){
+  const we=winExp(eH,eA), base=ROUND_BASE[round]||1.30;
+  const lH=Math.max(.15,Math.min(4.2,base*Math.pow(we/.5,.85)));
+  const lA=Math.max(.15,Math.min(4.2,base*Math.pow((1-we)/.5,.85)));
+  return [lH,lA];
+}
+/* Poisson bivariata + correzione Dixon-Coles (rho) sui punteggi bassi:
+   corregge la nota sottostima di 0-0/1-1 e sovrastima di 1-0/0-1 */
+const DC_RHO=-0.13;
+function scoreMatrix(lH,lA,max=8){
+  const M=[]; let tot=0;
+  for(let i=0;i<=max;i++){ M[i]=[]; for(let j=0;j<=max;j++){
+    let p=pois(i,lH)*pois(j,lA);
+    if(i===0&&j===0) p*=1-lH*lA*DC_RHO;
+    else if(i===0&&j===1) p*=1+lH*DC_RHO;
+    else if(i===1&&j===0) p*=1+lA*DC_RHO;
+    else if(i===1&&j===1) p*=1-DC_RHO;
+    M[i][j]=Math.max(0,p); tot+=M[i][j];
+  }}
+  for(let i=0;i<=max;i++) for(let j=0;j<=max;j++) M[i][j]/=tot;
+  return M;
+}
+/* trova (λH,λA) che riproducono un 1X2 target: usato per calibrare le quote sul mercato */
+const FIT_CACHE={};
+function fitLambdas(pH,pD,pA){
+  const key=Math.round(pH*500)+"_"+Math.round(pD*500);
+  if(FIT_CACHE[key]) return FIT_CACHE[key];
+  let best=null;
+  const evalErr=(lH,lA)=>{
+    const o=outcomes(scoreMatrix(lH,lA,6));
+    return (o.w-pH)*(o.w-pH)+(o.d-pD)*(o.d-pD)+(o.l-pA)*(o.l-pA);
+  };
+  for(let t=1.4;t<=4.4;t+=.25) for(let d=-2;d<=2;d+=.15){
+    const lH=(t+d)/2, lA=(t-d)/2;
+    if(lH<.15||lA<.15) continue;
+    const err=evalErr(lH,lA);
+    if(!best||err<best.err) best={lH,lA,err};
+  }
+  for(let lH=Math.max(.15,best.lH-.2);lH<=best.lH+.2;lH+=.04)
+    for(let lA=Math.max(.15,best.lA-.2);lA<=best.lA+.2;lA+=.04){
+      const err=evalErr(lH,lA);
+      if(err<best.err) best={lH,lA,err};
+    }
+  FIT_CACHE[key]=best;
+  return best;
+}
+function outcomes(M){
+  let w=0,d=0,l=0;
+  for(let i=0;i<M.length;i++) for(let j=0;j<M.length;j++){ if(i>j)w+=M[i][j]; else if(i===j)d+=M[i][j]; else l+=M[i][j]; }
+  const s=w+d+l; return {w:w/s,d:d/s,l:l/s};
+}
+function topScores(M,n=8,offH=0,offA=0){
+  const arr=[];
+  for(let i=0;i<M.length;i++) for(let j=0;j<M.length;j++) arr.push([i+offH,j+offA,M[i][j]]);
+  arr.sort((a,b)=>b[2]-a[2]); return arr.slice(0,n);
+}
+function overUnder(M,line,off=0){
+  let over=0; for(let i=0;i<M.length;i++) for(let j=0;j<M.length;j++) if(i+j+off>line) over+=M[i][j];
+  return over;
+}
+function btts(M){
+  let y=0; for(let i=1;i<M.length;i++) for(let j=1;j<M.length;j++) y+=M[i][j];
+  return y;
+}
+function advanceProb(eH,eA,oc,round){
+  const [lH,lA]=lambdas(eH,eA,round);
+  const et=outcomes(scoreMatrix(lH/3,lA/3,5));
+  const we=winExp(eH,eA);
+  const pPenH=.5+(we-.5)*.2;
+  const pH_afterDraw=et.w+et.d*pPenH;
+  return {h:oc.w+oc.d*pH_afterDraw, a:oc.l+oc.d*(1-pH_afterDraw)};
+}
+/* aggiustamento live: punteggio attuale + gol residui Poisson */
+function liveOutcome(e,lH,lA){
+  let m=0;
+  const c=parseInt(e.clock); if(!isNaN(c)) m=c;
+  if(/HT|Half/i.test(e.detail)) m=45;
+  m=Math.min(m,90);
+  const frac=Math.max(0,(90-m)/90);
+  const M=scoreMatrix(lH*frac,lA*frac,7);
+  const hs=parseInt(e.hs)||0, as=parseInt(e.as)||0;
+  let w=0,d=0,l=0;
+  for(let i=0;i<M.length;i++) for(let j=0;j<M.length;j++){
+    const H=hs+i, A=as+j;
+    if(H>A)w+=M[i][j]; else if(H===A)d+=M[i][j]; else l+=M[i][j];
+  }
+  const s=w+d+l;
+  return {w:w/s,d:d/s,l:l/s,M,hs,as,min:m};
+}
+function cardsModel(eH,eA,round){
+  const closeness=1-Math.abs(winExp(eH,eA)-.5)*2;
+  const stakes={"group-stage":0,"round-of-32":.3,"round-of-16":.4,"quarterfinals":.6,"semifinals":.7,"3rd-place-match":.2,"final":.9}[round]||0;
+  const lam=3.8+stakes+closeness*1.0;
+  const cum=n=>{let p=0;for(let k=0;k<=n;k++)p+=pois(k,lam);return p;};
+  return { lam, over35:1-cum(3), over45:1-cum(4), over55:1-cum(5),
+           red:Math.min(.5,.16+stakes*.12+closeness*.08) };
+}
+function cornersModel(eH,eA,lH0,lA0){
+  const we=winExp(eH,eA);
+  const tot=8.4+(lH0+lA0)*.5;
+  const shH=Math.pow(we,.7)/(Math.pow(we,.7)+Math.pow(1-we,.7));
+  const lH=tot*shH, lA=tot*(1-shH);
+  const cum=(n,l)=>{let p=0;for(let k=0;k<=n;k++)p+=pois(k,l);return p;};
+  return { lH,lA,tot, over85:1-cum(8,tot), over95:1-cum(9,tot), over105:1-cum(10,tot) };
+}
+function scorerProbs(team,lTeam){
+  const list=SCORERS[team]||genericScorers;
+  return list.map(([n,sh])=>{
+    const x=lTeam*sh;
+    return [n,1-Math.exp(-x),1-Math.exp(-x)-x*Math.exp(-x)]; // [nome, ≥1 gol, ≥2 gol]
+  });
+}
+const pct=x=>(x*100).toFixed(x*100>=10?0:1)+"%";
+const fairOdd=p=>p>0.001?(1/p).toFixed(2):"—";
+const pq=p=>pct(p)+' <span class="mini">(q '+fairOdd(p)+')</span>';
+
+/* ================= DATI LIVE ================= */
+const API="https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260801&limit=250";
+let EVENTS=[], FILTER="upcoming", SEARCH="", TIMER=null;
+
+/* ================= POLYMARKET ================= */
+const PM_MATCHES_API="https://gamma-api.polymarket.com/events?series_id=11433&closed=false&limit=300";
+const PM_WINNER_API="https://gamma-api.polymarket.com/events?slug=world-cup-winner";
+let PM_MATCH={}, PM_WINNER={}, PM_TIME=null;   // PM_MATCH["norm1|norm2|YYYY-MM-DD"]={h,d,a}
+
+function normTeam(n){
+  n=(n||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z ]/g,"").trim();
+  const alias={"usa":"united states","united states of america":"united states","czech republic":"czechia",
+    "turkiye":"turkey","south korea":"south korea","korea republic":"south korea","cote divoire":"ivory coast",
+    "bosnia herzegovina":"bosnia","bosniaherzegovina":"bosnia","bosnia and herzegovina":"bosnia",
+    "curacao":"curacao","cabo verde":"cape verde",
+    "ir iran":"iran","dr congo":"congo"};
+  return alias[n]||n;
+}
+const pmKey=(t1,t2,dateISO)=>[normTeam(t1),normTeam(t2)].sort().join("|")+"|"+dateISO;
+
+async function loadPolymarket(){
+  try{
+    const [rm,rw]=await Promise.all([fetch(PM_MATCHES_API),fetch(PM_WINNER_API)]);
+    if(rm.ok){
+      const evs=await rm.json();
+      const map={};
+      for(const ev of evs){
+        if(!ev.teams||ev.teams.length<2||!ev.markets) continue;
+        const home=ev.teams.find(t=>t.ordering==="home"), away=ev.teams.find(t=>t.ordering==="away");
+        if(!home||!away) continue;
+        let pH=null,pD=null,pA=null,tokH=null,tokA=null;
+        const firstTok=m=>{ try{ return JSON.parse(m.clobTokenIds)[0]; }catch(_){ return null; } };
+        for(const m of ev.markets){
+          let price=null;
+          try{ price=parseFloat(JSON.parse(m.outcomePrices)[0]); }catch(_){}
+          if(price==null||isNaN(price)) continue;
+          const line=(m.marketMetadata&&m.marketMetadata.opticOddsSelectionLine)||"";
+          if(line==="home"){ pH=price; tokH=firstTok(m); }
+          else if(line==="away"){ pA=price; tokA=firstTok(m); }
+          else if(line==="draw"||/draw/i.test(m.question||"")) pD=price;
+          else if(m.groupItemTitle&&normTeam(m.groupItemTitle)===normTeam(home.name)){ pH=price; tokH=firstTok(m); }
+          else if(m.groupItemTitle&&normTeam(m.groupItemTitle)===normTeam(away.name)){ pA=price; tokA=firstTok(m); }
+        }
+        if(pH==null||pD==null||pA==null) continue;
+        const s=pH+pD+pA;
+        map[pmKey(home.name,away.name,(ev.eventDate||ev.startTime||"").slice(0,10))]=
+          {hName:home.name,aName:away.name,h:pH/s,d:pD/s,a:pA/s,tokH,tokA};
+      }
+      PM_MATCH=map;
+      PM_TIME=new Date();
+    }
+    if(rw.ok){
+      const evs=await rw.json();
+      const w={};
+      if(evs[0]&&evs[0].markets){
+        for(const m of evs[0].markets){
+          const t=m.groupItemTitle||((m.question||"").match(/Will (.+?) win/i)||[])[1];
+          if(!t) continue;
+          try{
+            const p=parseFloat(JSON.parse(m.outcomePrices)[0]);
+            if(!isNaN(p)&&!m.closed) w[normTeam(t)]=p;
+          }catch(_){}
+        }
+      }
+      PM_WINNER=w;
+      PM_TIME=new Date();
+    }
+  }catch(e){ /* Polymarket non disponibile: il sito funziona comunque */ }
+}
+function pmForEvent(e){
+  // prova la data della partita e i giorni adiacenti (fusi orari)
+  const d=e.date;
+  for(const off of [0,-1,1]){
+    const dd=new Date(d.getTime()+off*864e5).toISOString().slice(0,10);
+    const m=PM_MATCH[pmKey(e.h,e.a,dd)];
+    if(m) return m;
+  }
+  return null;
+}
+/* il mercato Polymarket è sempre [casa, X, trasferta] rispetto alle SUE squadre:
+   riallinea rispetto all'ordine ESPN */
+function pmAligned(e){
+  const m=pmForEvent(e); if(!m) return null;
+  if(normTeam(m.hName)===normTeam(e.h)) return {h:m.h,d:m.d,a:m.a,tokH:m.tokH,tokA:m.tokA};
+  return {h:m.a,d:m.d,a:m.h,tokH:m.tokA,tokA:m.tokH};
+}
+
+/* ================= STORICO PREZZI (sparkline) ================= */
+const SPARK_CACHE={};
+function toggleCard(el,id){
+  el.classList.toggle("open");
+  if(el.classList.contains("open")) loadSpark(id);
+}
+async function loadSpark(id){
+  const box=document.getElementById("spark-"+id);
+  if(!box) return;
+  if(SPARK_CACHE[id]){ box.innerHTML=SPARK_CACHE[id]; return; }
+  let e=EVENTS.find(x=>x.id===id);
+  if(!e&&id==="h2h") e={id:"h2h",h:H2H.a,a:H2H.b,round:H2H.round,date:new Date()};
+  if(!e){ box.innerHTML='<span class="mini">Storico prezzi non disponibile.</span>'; return; }
+  const pm=pmAligned(e);
+  if(!pm||!pm.tokH||!pm.tokA){ box.innerHTML='<span class="mini">Storico prezzi non disponibile.</span>'; return; }
+  box.innerHTML='<span class="mini">Carico storico prezzi…</span>';
+  try{
+    const mk=t=>"https://clob.polymarket.com/prices-history?market="+t+"&interval=1w&fidelity=120";
+    const [h1,h2]=await Promise.all([fetch(mk(pm.tokH)),fetch(mk(pm.tokA))].map(p=>p.then(r=>r.json())));
+    const svg=sparkSVG([[h1.history||[], "var(--acc)", itName(e.h)],[h2.history||[], "var(--acc2)", itName(e.a)]]);
+    SPARK_CACHE[id]=svg; box.innerHTML=svg;
+  }catch(err){ box.innerHTML='<span class="mini">Storico prezzi non disponibile.</span>'; }
+}
+function sparkSVG(series){
+  const all=series.flatMap(s=>s[0]);
+  if(!all.length) return '<span class="mini">Nessun dato di prezzo.</span>';
+  const t0=Math.min(...all.map(x=>x.t)), t1=Math.max(...all.map(x=>x.t))||t0+1;
+  const pmax=Math.min(1,Math.max(.25,Math.max(...all.map(x=>x.p))*1.2));
+  let out='<svg viewBox="0 0 300 110" style="width:100%;height:110px" xmlns="http://www.w3.org/2000/svg">';
+  out+='<line x1="5" y1="90" x2="295" y2="90" stroke="var(--line)" stroke-width="1"/>';
+  let ly=8;
+  for(const [hist,col,name] of series){
+    if(!hist.length) continue;
+    const pts=hist.map(x=>((x.t-t0)/(t1-t0)*288+5).toFixed(1)+","+(90-(x.p/pmax)*78).toFixed(1)).join(" ");
+    out+='<polyline points="'+pts+'" fill="none" stroke="'+col+'" stroke-width="2"/>';
+    const last=hist[hist.length-1].p;
+    out+='<text x="8" y="'+ly+'" font-size="9" fill="'+col+'">'+name+' '+(last*100).toFixed(0)+'%</text>';
+    ly+=11;
+  }
+  out+='<text x="292" y="103" font-size="8" fill="var(--mut)" text-anchor="end">ultimi 7 giorni</text></svg>';
+  return out;
+}
+
+const ROUND_IT={"group-stage":"Fase a gironi","round-of-32":"Sedicesimi (Round of 32)","round-of-16":"Ottavi di finale",
+"quarterfinals":"Quarti di finale","semifinals":"Semifinali","3rd-place-match":"Finale 3º posto","final":"Finale"};
+const ROUND_ORDER=["final","3rd-place-match","semifinals","quarterfinals","round-of-16","round-of-32","group-stage"];
+
+async function loadData(manual){
+  try{
+    const [r]=await Promise.all([fetch(API),loadPolymarket()]);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d=await r.json();
+    const prev={}, prevSt={};
+    EVENTS.forEach(e=>{ prev[e.id]=e.hs+"-"+e.as; prevSt[e.id]=e.state; });
+    EVENTS=(d.events||[]).map(parseEvent).filter(Boolean);
+    EVENTS.forEach(e=>{ e.flash = e.state==="in" && prev[e.id]!=null && prev[e.id]!==(e.hs+"-"+e.as); });
+    notifyChanges(prev,prevSt);
+    updateLog();
+    document.getElementById("upd").textContent="aggiornato: "+new Date().toLocaleTimeString("it-IT")+
+      (PM_TIME?" · Polymarket ✓":" · Polymarket n/d");
+    scheduleNext();
+    render(); renderNext();
+  }catch(e){
+    document.getElementById("upd").textContent="errore di connessione";
+    if(!EVENTS.length)
+      document.getElementById("content").innerHTML=
+      '<div class="err">Impossibile scaricare i dati live ('+e.message+'). Controlla la connessione e premi "Aggiorna ora".</div>';
+  }
+}
+function scheduleNext(){
+  clearTimeout(TIMER);
+  const anyLive=EVENTS.some(e=>e.state==="in");
+  TIMER=setTimeout(loadData, anyLive?15000:60000);
+}
+
+function parseEvent(ev){
+  try{
+    const c=ev.competitions[0];
+    const home=c.competitors.find(x=>x.homeAway==="home"), away=c.competitors.find(x=>x.homeAway==="away");
+    const st=ev.status.type;
+    return {
+      id:ev.id, date:new Date(ev.date), round:(ev.season&&ev.season.slug)||"group-stage",
+      venue:(c.venue&&c.venue.fullName)||"", city:(c.venue&&c.venue.address&&c.venue.address.city)||"",
+      h:home.team.displayName, a:away.team.displayName,
+      hLogo:home.team.logo||"", aLogo:away.team.logo||"",
+      hs:home.score, as:away.score,
+      hWin:home.winner===true, aWin:away.winner===true,
+      state:st.state, detail:st.shortDetail, completed:st.completed,
+      clock:((ev.status.displayClock||"0").match(/\d+/)||["0"])[0],
+      placeholder:/winner|loser|runner|group [a-l]|3rd place|best/i.test(home.team.displayName+away.team.displayName)
+    };
+  }catch(e){ return null; }
+}
+
+/* ================= RENDER ================= */
+function render(){
+  const el=document.getElementById("content");
+  if(FILTER==="champion"){ el.innerHTML=championHTML(); return; }
+  if(FILTER==="value"){ el.innerHTML=valueHTML(); return; }
+  if(FILTER==="bracket"){ el.innerHTML=bracketHTML(); return; }
+  if(FILTER==="settings"){ el.innerHTML=settingsHTML(); bindSettings(); return; }
+  if(FILTER==="history"){ el.innerHTML=historyHTML(); bindHistory(); return; }
+  if(FILTER==="h2h"){ el.innerHTML=h2hHTML(); bindH2H(); return; }
+  let evs=EVENTS.slice();
+  if(FILTER==="upcoming") evs=evs.filter(e=>e.state!=="post");
+  if(FILTER==="finished") evs=evs.filter(e=>e.state==="post");
+  if(SEARCH){
+    const q=SEARCH.toLowerCase();
+    evs=evs.filter(e=>(e.h+e.a+itName(e.h)+itName(e.a)).toLowerCase().includes(q));
+  }
+  if(!evs.length){ el.innerHTML='<div class="empty">Nessuna partita in questa vista.</div>'; return; }
+
+  evs.sort((x,y)=>{
+    if((x.state==="in")!==(y.state==="in")) return x.state==="in"?-1:1;
+    return FILTER==="finished" ? y.date-x.date : x.date-y.date;
+  });
+  const byRound={};
+  evs.forEach(e=>{ (byRound[e.round]=byRound[e.round]||[]).push(e); });
+
+  let html=FILTER==="upcoming"?pickOfDay(evs):"";
+  const rounds=Object.keys(byRound).sort((a,b)=>{
+    const ia=ROUND_ORDER.indexOf(a), ib=ROUND_ORDER.indexOf(b);
+    return FILTER==="finished" ? ia-ib : ib-ia;
+  });
+  for(const r of rounds){
+    html+='<div class="round-title">'+(ROUND_IT[r]||r)+'</div>';
+    for(const e of byRound[r]) html+=matchCard(e);
+  }
+  // preserva le card aperte (e i loro grafici) attraverso i refresh automatici
+  const openIds=[...document.querySelectorAll(".match.open")].map(x=>x.dataset.id).filter(Boolean);
+  el.innerHTML=html;
+  for(const id of openIds){
+    const card=el.querySelector('.match[data-id="'+id+'"]');
+    if(card){ card.classList.add("open"); loadSpark(id); }
+  }
+}
+
+function pickOfDay(evs){
+  let cands=evs.filter(e=>!e.placeholder&&e.state==="pre");
+  if(!cands.length) return "";
+  const today=new Date().toDateString();
+  const sameDay=cands.filter(e=>e.date.toDateString()===today);
+  if(sameDay.length) cands=sameDay;
+  else { const d0=cands[0].date.toDateString(); cands=cands.filter(e=>e.date.toDateString()===d0); }
+  let best=null;
+  for(const e of cands){
+    const eH=getElo(e.h), eA=getElo(e.a);
+    let oc=outcomes(scoreMatrix(...lambdas(eH,eA,e.round)));
+    const pm=pmAligned(e);
+    if(pm){
+      const W=W_MARKET;
+      const s=1; oc={w:W*pm.h+(1-W)*oc.w, d:W*pm.d+(1-W)*oc.d, l:W*pm.a+(1-W)*oc.l};
+    }
+    for(const [sym,lab,p] of [["1",itName(e.h),oc.w],["2",itName(e.a),oc.l]])
+      if(!best||p>best.p) best={e,sym,lab,p,pm:!!pm};
+  }
+  if(!best) return "";
+  const day=best.e.date.toDateString()===new Date().toDateString()?"del giorno":
+    "di "+best.e.date.toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"});
+  return '<div class="advance" style="margin-bottom:16px"><span>⭐ Pronostico '+day+': <b>'+best.lab+'</b> ('+best.sym+') in '+
+    itName(best.e.h)+' – '+itName(best.e.a)+(best.pm?' <span class="pill">modello+mercato</span>':'')+'</span>'+
+    '<span><b>'+pct(best.p)+'</b> · quota equa '+fairOdd(best.p)+'</span></div>';
+}
+
+function renderNext(){
+  const nx=EVENTS.filter(e=>e.state==="pre"&&!e.placeholder).sort((a,b)=>a.date-b.date)[0];
+  const live=EVENTS.filter(e=>e.state==="in");
+  const el=document.getElementById("nextinfo");
+  if(live.length){
+    el.style.display="inline-block";
+    el.innerHTML='🔴 <b>LIVE ora:</b> '+live.map(e=>itName(e.h)+" "+e.hs+"–"+e.as+" "+itName(e.a)).join(" · ");
+  } else if(nx){
+    const ms=nx.date-Date.now();
+    const hh=Math.floor(ms/36e5), mm=Math.floor(ms%36e5/6e4);
+    el.style.display="inline-block";
+    el.innerHTML='⏳ Prossima: <b>'+itName(nx.h)+' vs '+itName(nx.a)+'</b>'+(ms>0?' tra '+(hh>0?hh+"h ":"")+mm+"m":"");
+  } else el.style.display="none";
+}
+
+function logoImg(url){ return url?'<img src="'+url+'" onerror="this.style.display=\'none\'" alt="">':""; }
+
+function matchCard(e){
+  const eH=getElo(e.h), eA=getElo(e.a);
+  const [lH,lA]=lambdas(eH,eA,e.round);
+  const M=scoreMatrix(lH,lA);
+  let oc=outcomes(M);
+  const isLive=e.state==="in";
+  let liveData=null;
+  if(isLive && !e.placeholder){ liveData=liveOutcome(e,lH,lA); oc=liveData; }
+
+  let when=e.date.toLocaleDateString("it-IT",{weekday:"short",day:"numeric",month:"short"})+" "+
+             e.date.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
+  if(e.state==="pre"){
+    const ms=e.date-Date.now();
+    if(ms>0){
+      const g=Math.floor(ms/864e5), hh=Math.floor(ms%864e5/36e5), mm=Math.floor(ms%36e5/6e4);
+      when+=" · tra "+(g>0?g+"g ":"")+(hh>0?hh+"h ":"")+mm+"m";
+    }
+  }
+  let scoreTxt, stateCls="";
+  if(isLive){ scoreTxt=e.hs+" – "+e.as; stateCls="live"; }
+  else if(e.state==="post"){ scoreTxt=e.hs+" – "+e.as; stateCls="final"; }
+  else scoreTxt="vs";
+
+  const nh=itName(e.h), na=itName(e.a);
+  let inner=
+    '<div class="top"><span>'+when+' · '+e.venue+(e.city?" ("+e.city+")":"")+'</span>'+
+    '<span class="'+stateCls+'">'+(isLive?"● LIVE "+e.detail:(e.state==="post"?"Finale":"In programma"))+
+    (e.flash?'<span class="goal-badge">⚽ GOL!</span>':'')+'</span></div>'+
+    '<div class="teams">'+
+    '<div class="tside">'+logoImg(e.hLogo)+'<span class="tname">'+nh+'</span></div>'+
+    '<div class="score '+stateCls+'">'+scoreTxt+'</div>'+
+    '<div class="tside away"><span class="tname">'+na+'</span>'+logoImg(e.aLogo)+'</div></div>';
+
+  if(!e.placeholder && e.state!=="post"){
+    inner+='<div class="probbar"><div class="pb1" style="width:'+(oc.w*100)+'%"></div>'+
+           '<div class="pbx" style="width:'+(oc.d*100)+'%"></div>'+
+           '<div class="pb2" style="width:'+(oc.l*100)+'%"></div></div>'+
+           '<div class="problabels"><span>1 '+pct(oc.w)+'</span><span>X '+pct(oc.d)+'</span><span>2 '+pct(oc.l)+'</span>'+
+           (isLive?'<span class="pill">probabilità live</span>':"")+'</div>';
+    const pm=pmAligned(e);
+    if(pm){
+      inner+='<div class="pmbar"><div class="pm1" style="width:'+(pm.h*100)+'%"></div>'+
+             '<div class="pmx" style="width:'+(pm.d*100)+'%"></div>'+
+             '<div class="pm2" style="width:'+(pm.a*100)+'%"></div></div>'+
+             '<div class="pmlab"><span>1 '+pct(pm.h)+'</span><span>📊 Polymarket · X '+pct(pm.d)+'</span><span>2 '+pct(pm.a)+'</span></div>';
+    }
+    inner+='<div class="detail">'+detailHTML(e,eH,eA,lH,lA,M,oc,liveData,pm)+'</div>';
+  } else if(e.placeholder){
+    inner+='<div class="problabels"><span class="pill">Accoppiamento da definire — le probabilità appariranno appena note le squadre</span></div>';
+  }
+  return '<div class="match'+(isLive?' islive':'')+(e.flash?' goal-flash':'')+'" data-id="'+e.id+'" onclick="toggleCard(this,\''+e.id+'\')">'+inner+'</div>';
+}
+
+function heatmapHTML(M,nh,na,offH,offA){
+  const max=5; let best=[0,0,-1];
+  for(let i=0;i<=max;i++)for(let j=0;j<=max;j++) if(M[i][j]>best[2]) best=[i,j,M[i][j]];
+  let h='<table class="heat"><tr><th>'+nh.slice(0,3).toUpperCase()+' \\ '+na.slice(0,3).toUpperCase()+'</th>';
+  for(let j=0;j<=max;j++) h+='<th>'+(j+offA)+'</th>';
+  h+='</tr>';
+  for(let i=0;i<=max;i++){
+    h+='<tr><th>'+(i+offH)+'</th>';
+    for(let j=0;j<=max;j++){
+      const p=M[i][j], a=Math.min(1,p/best[2]);
+      h+='<td class="'+(i===best[0]&&j===best[1]?'best':'')+'" style="background:rgba(34,211,165,'+(a*.55).toFixed(3)+')">'+(p*100).toFixed(1)+'</td>';
+    }
+    h+='</tr>';
+  }
+  return h+'</table>';
+}
+
+function detailHTML(e,eH,eA,lH,lA,Mpre,oc,liveData,pm){
+  const nh=itName(e.h), na=itName(e.a);
+  const knockout=e.round!=="group-stage";
+  const moPure=liveData?null:outcomes(Mpre);
+
+  /* calibrazione: se c'è Polymarket (pre-match), le quote finali fondono
+     modello (35%) e mercato (65%) e i λ vengono ri-stimati sul mix */
+  let lHe=lH, lAe=lA, ocEff=oc, calibrated=false;
+  if(pm && !liveData){
+    const W=W_MARKET;
+    let tH=W*pm.h+(1-W)*moPure.w, tD=W*pm.d+(1-W)*moPure.d, tA=W*pm.a+(1-W)*moPure.l;
+    const s=tH+tD+tA; tH/=s; tD/=s; tA/=s;
+    const fit=fitLambdas(tH,tD,tA);
+    lHe=fit.lH; lAe=fit.lA; calibrated=true;
+    ocEff={w:tH,d:tD,l:tA};
+  }
+  const M=liveData?liveData.M:(calibrated?scoreMatrix(lHe,lAe):Mpre);
+  const offH=liveData?liveData.hs:0, offA=liveData?liveData.as:0;
+  const adv=knockout?advanceLive(ocEff,eH,eA):null;
+  const ts=topScores(M,8,offH,offA);
+  const cards=cardsModel(eH,eA,e.round);
+  const corners=cornersModel(eH,eA,lHe,lAe);
+  const scH=scorerProbs(e.h,lHe), scA=scorerProbs(e.a,lAe);
+
+  let h="";
+  if(liveData) h+='<div class="livebox">🔴 <b>Probabilità aggiornate live</b> — punteggio '+liveData.hs+'–'+liveData.as+
+    ' al '+liveData.min+'\'. Il modello considera solo i gol ancora attesi nei minuti rimanenti.</div>';
+
+  h+='<div class="big3">'+
+    '<div class="box"><div class="pct" style="color:var(--acc)">'+pct(ocEff.w)+'</div><div class="lab">Vittoria '+nh+'</div><div class="odd">quota equa '+fairOdd(ocEff.w)+'</div></div>'+
+    '<div class="box"><div class="pct" style="color:var(--warn)">'+pct(ocEff.d)+'</div><div class="lab">Pareggio (90\')</div><div class="odd">quota equa '+fairOdd(ocEff.d)+'</div></div>'+
+    '<div class="box"><div class="pct" style="color:var(--acc2)">'+pct(ocEff.l)+'</div><div class="lab">Vittoria '+na+'</div><div class="odd">quota equa '+fairOdd(ocEff.l)+'</div></div></div>';
+  if(calibrated) h+='<div class="mini" style="margin:-6px 0 12px;text-align:center">Quote <b>calibrate</b>: '+Math.round(W_MARKET*100)+'% prezzi Polymarket + '+Math.round((1-W_MARKET)*100)+'% modello Elo (peso regolabile in ⚙️). Tutti i mercati qui sotto sono coerenti con questa stima.</div>';
+
+  if(adv) h+='<div class="advance"><span>🎯 Passaggio del turno (incl. supplementari/rigori)</span>'+
+    '<span><b>'+nh+' '+pct(adv.h)+'</b> · <b>'+na+' '+pct(adv.a)+'</b></span></div>';
+
+  /* breakdown: come si decide la qualificazione */
+  let decideHTML="";
+  if(adv&&!liveData){
+    const [lH0,lA0]=lambdas(eH,eA,e.round);
+    const et=outcomes(scoreMatrix(lH0/3,lA0/3,5));
+    const we=winExp(eH,eA), pPenH=.5+(we-.5)*.2;
+    const pens=ocEff.d*et.d;
+    decideHTML='<div class="panel"><h4>Come si decide il passaggio</h4>'+
+      '<div class="vsrow"><span class="hd">Modo</span><span class="hd">'+nh+'</span><span class="hd">'+na+'</span><span class="hd">Totale</span></div>'+
+      '<div class="vsrow"><span>Nei 90\'</span><span class="v">'+pct(ocEff.w)+'</span><span class="v">'+pct(ocEff.l)+'</span><span>'+pct(ocEff.w+ocEff.l)+'</span></div>'+
+      '<div class="vsrow"><span>Ai supplementari</span><span class="v">'+pct(ocEff.d*et.w)+'</span><span class="v">'+pct(ocEff.d*et.l)+'</span><span>'+pct(ocEff.d*(et.w+et.l))+'</span></div>'+
+      '<div class="vsrow"><span>Ai rigori</span><span class="v">'+pct(pens*pPenH)+'</span><span class="v">'+pct(pens*(1-pPenH))+'</span><span>'+pct(pens)+'</span></div>'+
+      '<div class="mini" style="margin-top:8px">Supplementari modellati come mini-partita (λ/3); rigori quasi alla pari con leggero peso Elo.</div></div>';
+  }
+
+  h+='<div class="dgrid">';
+  h+=decideHTML;
+
+  if(pm){
+    const mo=moPure||oc;
+    const dif=x=>{const d=x*100; const cls=d>=5?"value-up":(d<=-5?"value-dn":""); return '<span class="'+cls+'">'+(d>0?"+":"")+d.toFixed(0)+' pp</span>';};
+    h+='<div class="panel"><h4>📊 Modello'+(liveData?' (live)':'')+' vs Polymarket (90\')</h4>'+
+       '<div class="vsrow"><span class="hd">Esito</span><span class="hd">Modello</span><span class="hd">Polymarket</span><span class="hd">Δ modello</span></div>'+
+       '<div class="vsrow"><span>1 · '+nh+'</span><span class="v">'+pct(mo.w)+'</span><span style="color:#b18cff">'+pct(pm.h)+' <span class="mini">('+fairOdd(pm.h)+')</span></span>'+dif(mo.w-pm.h)+'</div>'+
+       '<div class="vsrow"><span>X · Pareggio</span><span class="v">'+pct(mo.d)+'</span><span style="color:#b18cff">'+pct(pm.d)+' <span class="mini">('+fairOdd(pm.d)+')</span></span>'+dif(mo.d-pm.d)+'</div>'+
+       '<div class="vsrow"><span>2 · '+na+'</span><span class="v">'+pct(mo.l)+'</span><span style="color:#b18cff">'+pct(pm.a)+' <span class="mini">('+fairOdd(pm.a)+')</span></span>'+dif(mo.l-pm.a)+'</div>'+
+       '<div class="mini" style="margin-top:8px">Δ ≥ +5 pp in verde: il modello vede l\'esito più probabile di quanto prezzi il mercato (possibile "value"). I prezzi Polymarket riflettono denaro reale scambiato ora.</div></div>';
+  }
+
+  h+='<div class="panel"><h4>Heatmap risultato esatto (%)</h4>'+heatmapHTML(M,nh,na,offH,offA)+
+     '<div class="mini" style="margin-top:8px">Gol attesi'+(liveData?' residui':'')+': '+nh+' '+
+     (liveData?(lH*Math.max(0,(90-liveData.min))/90).toFixed(2):lHe.toFixed(2))+' · '+na+' '+
+     (liveData?(lA*Math.max(0,(90-liveData.min))/90).toFixed(2):lAe.toFixed(2))+
+     (calibrated?' <span class="pill">calibrati sul mercato</span>':'')+'</div></div>';
+
+  h+='<div class="panel"><h4>Risultati esatti più probabili</h4>';
+  const best=ts[0];
+  for(const [i,j,p] of ts)
+    h+='<div class="row"><span>'+i+' – '+j+(i===best[0]&&j===best[1]?' <span class="pill">pronostico</span>':'')+
+       '</span><div class="bar-wrap"><div class="bar-fill" style="width:'+(p/ts[0][2]*100)+'%"></div></div><span class="v">'+pct(p)+'</span></div>';
+  h+='</div>';
+
+  let ggP;
+  if(liveData){
+    if(offH>0&&offA>0) ggP=1;
+    else { let y=0; for(let i=0;i<M.length;i++) for(let j=0;j<M.length;j++) if(offH+i>0&&offA+j>0) y+=M[i][j]; ggP=y; }
+  } else ggP=btts(M);
+  h+='<div class="panel"><h4>Gol totali</h4>'+
+     '<div class="row"><span>Over 1.5</span><span class="v">'+pq(overUnder(M,1.5,offH+offA))+'</span></div>'+
+     '<div class="row"><span>Over 2.5</span><span class="v">'+pq(overUnder(M,2.5,offH+offA))+'</span></div>'+
+     '<div class="row"><span>Over 3.5</span><span class="v">'+pq(overUnder(M,3.5,offH+offA))+'</span></div>'+
+     '<div class="row"><span>Under 2.5</span><span class="v">'+pq(1-overUnder(M,2.5,offH+offA))+'</span></div>'+
+     '<div class="row"><span>Entrambe segnano (GG)</span><span class="v">'+pq(ggP)+'</span></div>'+
+     '<div class="row"><span>No Gol (NG)</span><span class="v">'+pq(1-ggP)+'</span></div></div>';
+
+  h+='<div class="panel"><h4>Doppia chance'+(knockout?' & supplementari':'')+'</h4>'+
+     '<div class="row"><span>1X ('+nh+' o pari)</span><span class="v">'+pq(ocEff.w+ocEff.d)+'</span></div>'+
+     '<div class="row"><span>X2 (pari o '+na+')</span><span class="v">'+pq(ocEff.d+ocEff.l)+'</span></div>'+
+     '<div class="row"><span>12 (niente pareggio)</span><span class="v">'+pq(ocEff.w+ocEff.l)+'</span></div>'+
+     (knockout?'<div class="row"><span>Si va ai supplementari (X al 90\')</span><span class="v">'+pq(ocEff.d)+'</span></div>':'')+
+     '</div>';
+
+  h+='<div class="panel"><h4>Marcatori probabili (almeno 1 gol · doppietta)</h4>';
+  const scRow=(n,p,p2)=>'<div class="row"><span>'+n+'</span><div class="bar-wrap"><div class="bar-fill" style="width:'+Math.min(100,p*160)+'%"></div></div><span class="v">'+pct(p)+' <span class="mini">2+: '+pct(p2)+'</span></span></div>';
+  h+='<div class="mini" style="margin-bottom:6px">'+nh+'</div>';
+  for(const [n,p,p2] of scH) h+=scRow(n,p,p2);
+  h+='<div class="mini" style="margin:8px 0 6px">'+na+'</div>';
+  for(const [n,p,p2] of scA) h+=scRow(n,p,p2);
+  h+='</div>';
+
+  h+='<div class="panel"><h4>Cartellini</h4>'+
+     '<div class="row"><span>Gialli attesi (totale)</span><span class="v">'+cards.lam.toFixed(1)+'</span></div>'+
+     '<div class="row"><span>Over 3.5 gialli</span><span class="v">'+pq(cards.over35)+'</span></div>'+
+     '<div class="row"><span>Over 4.5 gialli</span><span class="v">'+pq(cards.over45)+'</span></div>'+
+     '<div class="row"><span>Over 5.5 gialli</span><span class="v">'+pq(cards.over55)+'</span></div>'+
+     '<div class="row"><span>Almeno un rosso</span><span class="v">'+pq(cards.red)+'</span></div></div>';
+
+  h+='<div class="panel"><h4>Calci d\'angolo</h4>'+
+     '<div class="row"><span>Corner attesi (totale)</span><span class="v">'+corners.tot.toFixed(1)+'</span></div>'+
+     '<div class="row"><span>'+nh+'</span><span class="v">'+corners.lH.toFixed(1)+'</span></div>'+
+     '<div class="row"><span>'+na+'</span><span class="v">'+corners.lA.toFixed(1)+'</span></div>'+
+     '<div class="row"><span>Over 8.5</span><span class="v">'+pq(corners.over85)+'</span></div>'+
+     '<div class="row"><span>Over 9.5</span><span class="v">'+pq(corners.over95)+'</span></div>'+
+     '<div class="row"><span>Over 10.5</span><span class="v">'+pq(corners.over105)+'</span></div></div>';
+
+  if(pm&&pm.tokH&&pm.tokA)
+    h+='<div class="panel"><h4>📈 Prezzi Polymarket — andamento</h4>'+
+       '<div id="spark-'+e.id+'"><span class="mini">Carico storico prezzi…</span></div>'+
+       '<div class="mini" style="margin-top:6px">Prezzo = probabilità implicita di vittoria nei 90\'. Un prezzo che sale indica denaro in arrivo su quella squadra.</div></div>';
+
+  h+='</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px">'+
+     '<span class="mini">Rating Elo: '+nh+' '+eH+' · '+na+' '+eA+'</span>'+
+     '<button class="refresh" onclick="copyPred(event,\''+e.id+'\')">📋 Copia pronostico</button></div>';
+  return h;
+}
+function advanceLive(oc,eH,eA){
+  const [lH,lA]=lambdas(eH,eA);
+  const et=outcomes(scoreMatrix(lH/3,lA/3,5));
+  const we=winExp(eH,eA);
+  const pPenH=.5+(we-.5)*.2;
+  const pH_afterDraw=et.w+et.d*pPenH;
+  return {h:oc.w+oc.d*pH_afterDraw, a:oc.l+oc.d*(1-pH_afterDraw)};
+}
+
+/* ================= TABELLONE REALE (programmazione dinamica) ================= */
+const KO_ROUNDS=["round-of-32","round-of-16","quarterfinals","semifinals","final"];
+function koByRound(){
+  /* la numerazione ufficiale (QF1, QF2…) segue l'ID evento ESPN, non la data */
+  const by={};
+  for(const r of KO_ROUNDS)
+    by[r]=EVENTS.filter(e=>e.round===r).sort((a,b)=>((+a.id||0)-(+b.id||0))||(a.date-b.date));
+  return by;
+}
+function parseSlot(name){
+  const m=(name||"").match(/(round of 32|round of 16|rd of 16|quarterfinals?|semifinals?)\s*(\d+)/i);
+  if(!m) return null;
+  const s=m[1].toLowerCase();
+  const round=s.includes("32")?"round-of-32":s.includes("16")?"round-of-16":s.startsWith("quarter")?"quarterfinals":"semifinals";
+  return {round,idx:+m[2]};
+}
+const isPlaceholderName=n=>/winner|runner|3rd|best|group [a-l]|loser/i.test(n||"");
+/* dist[round][i] = {squadra: P(vince quella partita)} — usa risultati reali quando ci sono */
+function bracketDP(){
+  const by=koByRound();
+  if(!by["round-of-32"].length&&!by["round-of-16"].length) return null;
+  const dist={}, pPlay={};   // pPlay[squadra][round] = P di giocare quel turno (solo partite future)
+  const addPlay=(t,r,p)=>{ (pPlay[t]=pPlay[t]||{})[r]=Math.min(1,(pPlay[t][r]||0)+p); };
+  const sideDist=(team)=>{
+    if(!isPlaceholderName(team)) return {[team]:1};
+    const slot=parseSlot(team);
+    if(slot&&dist[slot.round]&&dist[slot.round][slot.idx-1]) return dist[slot.round][slot.idx-1];
+    return null;
+  };
+  for(const r of KO_ROUNDS){
+    dist[r]=[];
+    for(const e of by[r]){
+      let out=null;
+      if(e.state==="post"&&!e.placeholder){
+        const w=e.hWin?e.h:(e.aWin?e.a:(+e.hs>+e.as?e.h:(+e.as>+e.hs?e.a:null)));
+        if(w) out={[w]:1};
+      } else {
+        const dH=sideDist(e.h), dA=sideDist(e.a);
+        if(dH&&dA){
+          out={};
+          const wPlay=e.state==="in"?0.35:1;   // live: partita in gran parte già giocata
+          for(const t in dH) addPlay(t,r,dH[t]*wPlay);
+          for(const t in dA) addPlay(t,r,dA[t]*wPlay);
+          for(const tH in dH) for(const tA in dA){
+            const eloH=getElo(tH), eloA=getElo(tA);
+            const adv=advanceProb(eloH,eloA,outcomes(scoreMatrix(...lambdas(eloH,eloA,r))),r);
+            out[tH]=(out[tH]||0)+dH[tH]*dA[tA]*adv.h;
+            out[tA]=(out[tA]||0)+dH[tH]*dA[tA]*adv.a;
+          }
+        }
+      }
+      dist[r].push(out);
+    }
+  }
+  const fin=dist["final"]&&dist["final"][0];
+  return {champ:fin||null,dist,by,pPlay};
+}
+/* corsa al capocannoniere: gol attesi nelle partite rimanenti */
+function topScorerRace(bp){
+  const rows=[];
+  for(const team in bp.pPlay){
+    const list=SCORERS[team]; if(!list) continue;
+    let xg=0;
+    for(const r in bp.pPlay[team]) xg+=bp.pPlay[team][r]*lambdas(getElo(team),1900,r)[0];
+    if(xg<.05) continue;
+    for(const [n,sh] of list.slice(0,3)) rows.push([n,team,xg*sh]);
+  }
+  rows.sort((a,b)=>b[2]-a[2]);
+  return rows.slice(0,12);
+}
+function topCandidates(d,n=3){
+  return Object.entries(d).sort((a,b)=>b[1]-a[1]).slice(0,n);
+}
+function bracketHTML(){
+  const bp=bracketDP();
+  if(!bp||KO_ROUNDS.every(r=>!bp.by[r].length))
+    return '<div class="empty">Il tabellone a eliminazione diretta non è ancora disponibile.</div>';
+  const RD_IT={"round-of-32":"Sedicesimi","round-of-16":"Ottavi","quarterfinals":"Quarti","semifinals":"Semifinali","final":"Finale"};
+  let h="";
+  for(const r of KO_ROUNDS){
+    const evs=bp.by[r]; if(!evs.length) continue;
+    h+='<div class="round-title">'+RD_IT[r]+' <span class="mini">('+evs.length+' partite)</span></div>';
+    evs.forEach((e,i)=>{
+      const when=e.date.toLocaleDateString("it-IT",{day:"numeric",month:"short"})+" "+e.date.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
+      const st=e.state==="in"?'<span class="live">● LIVE '+e.detail+'</span>':(e.state==="post"?'<span class="final">finita</span>':when);
+      h+='<div class="bk-match"><div class="bk-head"><span>#'+(i+1)+' · '+e.venue+'</span><span>'+st+'</span></div>';
+      const d=bp.dist[r][i];
+      for(const side of ["h","a"]){
+        const name=e[side], other=side==="h"?e.a:e.h;
+        const sc=e.state!=="pre"?(side==="h"?e.hs:e.as):"";
+        if(!isPlaceholderName(name)){
+          const won=e.state==="post"&&(side==="h"?(+e.hs>+e.as||e.hWin):(+e.as>+e.hs||e.aWin));
+          const lost=e.state==="post"&&!won;
+          let pr="";
+          if(e.state!=="post"&&d&&d[name]!=null) pr='<span class="pr">passa '+pct(d[name])+'</span>';
+          h+='<div class="bk-side'+(lost?' loser':'')+'"><span class="nm">'+logoImg(side==="h"?e.hLogo:e.aLogo)+itName(name)+(won?" ✓":"")+'</span><span>'+(sc!==""?'<b>'+sc+'</b> ':'')+pr+'</span></div>';
+        } else {
+          const slot=parseSlot(name);
+          const feed=slot&&bp.dist[slot.round]&&bp.dist[slot.round][slot.idx-1];
+          if(feed) h+='<div class="bk-cand">probabili: '+topCandidates(feed).map(([t,p])=>'<b>'+itName(t)+'</b> '+pct(p)).join(" · ")+'</div>';
+          else h+='<div class="bk-cand">'+name+'</div>';
+        }
+      }
+      h+='</div>';
+    });
+  }
+  h+='<div class="mini" style="margin-top:12px">"Passa" = probabilità di superare il turno (supplementari e rigori inclusi). Per gli slot non ancora definiti sono mostrate le squadre più probabili calcolate propagando le probabilità lungo il tabellone reale.</div>';
+  return h;
+}
+
+/* ================= VINCITORE TORNEO (Monte Carlo) ================= */
+function aliveTeams(){
+  const koRounds=["round-of-32","round-of-16","quarterfinals","semifinals","final"];
+  const inKO=new Set(), losers=new Set();
+  for(const e of EVENTS){
+    if(!koRounds.includes(e.round)||e.placeholder) continue;
+    inKO.add(e.h); inKO.add(e.a);
+    if(e.state==="post"){
+      if(e.hWin) losers.add(e.a);
+      else if(e.aWin) losers.add(e.h);
+      else { const hs=+e.hs, as=+e.as; if(hs>as)losers.add(e.a); else if(as>hs)losers.add(e.h); }
+    }
+  }
+  return [...inKO].filter(t=>!losers.has(t));
+}
+function championHTML(){
+  let rank=null, viaBracket=false;
+  const bp=bracketDP();
+  if(bp&&bp.champ){
+    rank=Object.entries(bp.champ).filter(([t,p])=>p>.0004).sort((a,b)=>b[1]-a[1]);
+    viaBracket=true;
+  }
+  if(!rank||!rank.length){
+    const alive=aliveTeams();
+    if(alive.length===1){ rank=[[alive[0],1]]; }
+    else if(alive.length<2) return '<div class="empty">Il quadro delle squadre ancora in corsa non è ancora disponibile (fase a gironi o dati incompleti).</div>';
+  }
+  if(!rank||!rank.length){
+    const alive=aliveTeams();
+    const wins={}; alive.forEach(t=>wins[t]=0);
+    const SIMS=4000;
+    for(let s=0;s<SIMS;s++){
+      let pool=alive.slice();
+      while(pool.length>1){
+        for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+        const nxt=[];
+        for(let i=0;i+1<pool.length;i+=2){
+          const A=pool[i],B=pool[i+1];
+          const eA=getElo(A), eB=getElo(B);
+          const oc=outcomes(scoreMatrix(...lambdas(eA,eB)));
+          const adv=advanceProb(eA,eB,oc);
+          nxt.push(Math.random()<adv.h?A:B);
+        }
+        if(pool.length%2) nxt.push(pool[pool.length-1]);
+        pool=nxt;
+      }
+      wins[pool[0]]++;
+    }
+    rank=Object.entries(wins).map(([t,w])=>[t,w/SIMS]).sort((a,b)=>b[1]-a[1]);
+    viaBracket=false;
+  }
+  const maxP=rank[0][1];
+  const logos={}; EVENTS.forEach(e=>{ logos[e.h]=e.hLogo; logos[e.a]=e.aLogo; });
+  const hasPM=Object.keys(PM_WINNER).length>0;
+  let h='<div class="round-title">🏆 Probabilità di vincere il Mondiale — '+rank.length+' squadre in corsa</div>';
+  h+='<div class="mini" style="margin-bottom:14px">Barra verde/blu = modello Elo '+
+     (viaBracket?'propagato lungo il <b>tabellone reale</b> (ogni squadra affronta gli avversari del suo lato del tabellone; supplementari e rigori inclusi).':'con simulazione Monte Carlo (accoppiamenti casuali).')+
+     (hasPM?' In <span style="color:#b18cff">viola</span>: probabilità implicita dei prezzi Polymarket (denaro reale, live).':'')+
+     ' Si aggiorna a ogni risultato.</div>';
+  const RD_SHORT={"round-of-32":"Sedicesimi","round-of-16":"Ottavi","quarterfinals":"Quarti","semifinals":"Semifinale","final":"Finale"};
+  for(const [t,p] of rank){
+    const pmP=hasPM?PM_WINNER[normTeam(t)]:null;
+    const hasPath=viaBracket&&bp.pPlay[t];
+    h+='<div class="champ-row"'+(hasPath?' style="cursor:pointer" onclick="togglePath(this)" title="clicca per il percorso"':'')+'>'+
+       logoImg(logos[t])+'<span class="cn">'+itName(t)+(hasPath?' <span class="mini">▾</span>':'')+'</span>'+
+       '<div class="cbar"><div style="width:'+(p/maxP*100)+'%"></div></div>'+
+       '<span class="cp">'+pct(p)+'</span>'+
+       (hasPM?'<span class="cpm">'+(pmP!=null?'PM '+pct(pmP):'—')+'</span>':'')+
+       '<span class="co">quota '+fairOdd(p)+'</span></div>';
+    if(hasPath){
+      const path=KO_ROUNDS.filter(r=>bp.pPlay[t][r]!=null)
+        .map(r=>'gioca '+RD_SHORT[r].toLowerCase()+' <b>'+pct(Math.min(1,bp.pPlay[t][r]))+'</b>').join(' · ');
+      h+='<div class="champ-path" style="display:none">'+(path||"percorso completato")+' · 🏆 titolo <b>'+pct(p)+'</b></div>';
+    }
+  }
+  if(hasPM){
+    const seen=new Set(rank.map(([t])=>normTeam(t)));
+    const extra=Object.entries(PM_WINNER).filter(([t,p])=>!seen.has(t)&&p>=.01).sort((a,b)=>b[1]-a[1]);
+    if(extra.length){
+      h+='<div class="mini" style="margin:14px 0 8px">Altre squadre quotate ≥1% su Polymarket (non risultano tra le vive nei dati ESPN):</div>';
+      for(const [t,p] of extra) h+='<div class="champ-row"><span class="cn">'+itName(t.replace(/\b\w/g,c=>c.toUpperCase()))+'</span><div class="cbar"></div><span class="cpm">PM '+pct(p)+'</span></div>';
+    }
+  }
+  if(viaBracket){
+    const race=topScorerRace(bp);
+    if(race.length){
+      h+='<div class="round-title">👟 Corsa al capocannoniere — gol attesi nelle partite rimanenti</div>';
+      h+='<div class="mini" style="margin-bottom:10px">xG = probabilità di giocare ogni turno × gol attesi di squadra × quota gol del giocatore. Non include i gol già segnati nel torneo.</div>';
+      const mx=race[0][2];
+      for(const [n,team,xg] of race)
+        h+='<div class="champ-row"><span class="cn">'+n+'</span><span class="mini" style="width:110px">'+itName(team)+'</span>'+
+           '<div class="cbar"><div style="width:'+(xg/mx*100)+'%"></div></div>'+
+           '<span class="cp">'+xg.toFixed(2)+'</span><span class="co">≥1 gol: '+pct(1-Math.exp(-xg))+'</span></div>';
+    }
+  }
+  return h;
+}
+
+/* ================= TAB VALUE & PRONOSTICI ================= */
+function valueHTML(){
+  let h="";
+  if(!PM_TIME){
+    h+='<div class="empty">Quotazioni Polymarket non disponibili al momento: mostro i pronostici del solo modello.</div>';
+  } else {
+    const rows=[];
+    for(const e of EVENTS){
+      if(e.placeholder||e.state!=="pre") continue;
+      const pm=pmAligned(e); if(!pm) continue;
+      const eH=getElo(e.h), eA=getElo(e.a);
+      const oc=outcomes(scoreMatrix(...lambdas(eH,eA,e.round)));
+      const opts=[["1",itName(e.h),oc.w,pm.h],["X","Pareggio",oc.d,pm.d],["2",itName(e.a),oc.l,pm.a]];
+      for(const [sym,lab,pmod,pmkt] of opts){
+        const edge=pmod-pmkt;
+        if(edge>=.04&&pmkt>.02) rows.push({e,sym,lab,pmod,pmkt,edge});
+      }
+    }
+    rows.sort((a,b)=>b.edge-a.edge);
+    h+='<div class="round-title">💎 Possibili value — modello vs prezzi Polymarket</div>';
+    h+='<div class="mini" style="margin-bottom:14px">Esiti a cui il modello Elo assegna una probabilità di almeno 4 punti percentuali superiore al prezzo di mercato. Non è un consiglio di scommessa: il mercato incorpora informazioni (formazioni, infortuni, notizie) che il modello non vede.</div>';
+    if(!rows.length) h+='<div class="empty">Nessuna discrepanza rilevante al momento: modello e mercato sono allineati.</div>';
+    for(const r of rows.slice(0,15)){
+      const when=r.e.date.toLocaleDateString("it-IT",{weekday:"short",day:"numeric",month:"short"});
+      h+='<div class="champ-row"><span class="pill" style="width:26px;text-align:center">'+r.sym+'</span>'+
+         '<span class="cn">'+r.lab+'</span>'+
+         '<span class="mini" style="flex:1">'+itName(r.e.h)+' – '+itName(r.e.a)+' · '+when+'</span>'+
+         '<span class="cp">'+pct(r.pmod)+'</span>'+
+         '<span class="cpm">PM '+pct(r.pmkt)+' (q '+fairOdd(r.pmkt)+')</span>'+
+         '<span class="co value-up">+'+(r.edge*100).toFixed(0)+' pp</span></div>';
+    }
+  }
+  h+=fullPredHTML();
+  return h;
+}
+
+/* ================= SCHEDINA ================= */
+let SLIP={}, PRED_MINCONF=false;
+function togglePick(el){
+  const k=el.dataset.k;
+  if(SLIP[k]) delete SLIP[k];
+  else SLIP[k]={label:decodeURIComponent(el.dataset.l),match:decodeURIComponent(el.dataset.m),p:+el.dataset.p};
+  render();
+}
+function removePick(k){ delete SLIP[k]; render(); }
+function togglePredFilter(){ PRED_MINCONF=!PRED_MINCONF; render(); }
+async function copySlip(ev){
+  const items=Object.values(SLIP);
+  if(!items.length) return;
+  const prod=items.reduce((a,x)=>a*x.p,1);
+  const txt="🧾 Schedina Mondiale 2026 ("+items.length+" selezioni)\n"+
+    items.map(x=>"• "+x.match+" → "+x.label+" ("+pct(x.p)+")").join("\n")+
+    "\nProbabilità combinata: "+pct(prod)+" · quota equa "+fairOdd(prod)+
+    "\nStima statistica (indipendenza tra le partite assunta) — non è un consiglio di scommessa";
+  try{
+    await navigator.clipboard.writeText(txt);
+    ev.target.textContent="✅ Copiata!";
+    setTimeout(()=>{ ev.target.textContent="📋 Copia schedina"; },1600);
+  }catch(_){ ev.target.textContent="⚠️ Copia non riuscita"; }
+}
+function slipHTML(){
+  const keys=Object.keys(SLIP);
+  if(!keys.length) return '<div class="mini" style="margin-bottom:12px">Tocca "+ schedina" su un pronostico per costruire la tua multipla: qui vedrai probabilità combinata e quota equa.</div>';
+  const items=keys.map(k=>[k,SLIP[k]]);
+  const prod=items.reduce((a,[,x])=>a*x.p,1);
+  let h='<div class="set-panel" style="border-color:var(--acc)"><b>🧾 La tua schedina — '+items.length+' selezioni</b>';
+  for(const [k,x] of items)
+    h+='<div class="row"><span><b>'+x.label+'</b> <span class="mini">'+x.match+'</span></span>'+
+       '<span class="v">'+pct(x.p)+' <button class="refresh" style="padding:1px 7px;font-size:.72rem" onclick="removePick(\''+k+'\')">✕</button></span></div>';
+  h+='<div class="row" style="border-top:1px solid var(--line);margin-top:4px"><span><b>Combinata</b> <span class="mini">(indipendenza assunta)</span></span>'+
+     '<span class="v" style="color:var(--acc)">'+pct(prod)+' · quota equa '+fairOdd(prod)+'</span></div>'+
+     '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'+
+     '<button class="refresh" onclick="copySlip(event)">📋 Copia schedina</button>'+
+     '<button class="refresh" onclick="SLIP={};render()">🗑 Svuota</button></div>'+
+     '<div class="mini" style="margin-top:6px">Nota: selezioni della stessa partita sono correlate tra loro, la combinata le tratta come indipendenti.</div></div>';
+  return h;
+}
+const confBadge=p=>p>=.7?'<span class="pill" style="color:var(--acc)">●●● alta</span>':
+  (p>=.55?'<span class="pill" style="color:var(--warn)">●●○ media</span>':'<span class="pill">●○○ bassa</span>');
+
+/* ================= PRONOSTICI COMPLETI MULTI-MERCATO ================= */
+function matchPredBlock(e){
+  const eH=getElo(e.h), eA=getElo(e.a);
+  const knockout=e.round!=="group-stage";
+  const [lH0,lA0]=lambdas(eH,eA,e.round);
+  const mo=outcomes(scoreMatrix(lH0,lA0));
+  const pm=pmAligned(e);
+  let oc=mo, lHe=lH0, lAe=lA0, cal=false;
+  if(pm){
+    let tH=W_MARKET*pm.h+(1-W_MARKET)*mo.w, tD=W_MARKET*pm.d+(1-W_MARKET)*mo.d, tA=W_MARKET*pm.a+(1-W_MARKET)*mo.l;
+    const s=tH+tD+tA; oc={w:tH/s,d:tD/s,l:tA/s};
+    const fit=fitLambdas(oc.w,oc.d,oc.l); lHe=fit.lH; lAe=fit.lA; cal=true;
+  }
+  const M=scoreMatrix(lHe,lAe);
+  const nh=itName(e.h), na=itName(e.a);
+  const gap=Math.abs(Math.round(eH-eA));
+  const tot=lHe+lAe;
+  const picks=[];
+  const P=(m,pick,p,why,val)=>picks.push({m,pick,p,why,val});
+
+  /* esito / doppia chance */
+  const homeFav=oc.w>=oc.l;
+  const fav={n:homeFav?nh:na, p:homeFav?oc.w:oc.l, sym:homeFav?"1":"2", team:homeFav?e.h:e.a, l:homeFav?lHe:lAe};
+  const pmFav=pm?(homeFav?pm.h:pm.a):null;
+  const moFav=homeFav?mo.w:mo.l;
+  const mktTxt=pm?(Math.abs(pmFav-fav.p)<.05?" Il mercato concorda ("+pct(pmFav)+" su Polymarket).":" Il mercato la prezza al "+pct(pmFav)+"."):"";
+  const valEdge=pm?moFav-pmFav:0;
+  if(oc.d>fav.p){
+    P("Esito","X — pareggio (90')",oc.d,"Equilibrio quasi perfetto: appena "+gap+" punti Elo di differenza e "+tot.toFixed(1)+" gol attesi totali. Il pareggio è l'esito singolo più probabile.");
+  } else if(fav.p>=.55){
+    P("Esito",fav.sym+" — vince "+fav.n,fav.p,fav.n+" è più forte ("+gap+" punti Elo di margine) e vale "+fav.l.toFixed(1)+" gol attesi contro "+(tot-fav.l).toFixed(1)+"."+mktTxt,valEdge>=.04);
+  } else {
+    P("Doppia chance",(fav.sym==="1"?"1X":"X2")+" — "+fav.n+" o pareggio",fav.p+oc.d,"Sfida aperta: "+fav.n+" è favorita ma solo al "+pct(fav.p)+", col pareggio al "+pct(oc.d)+". La doppia chance copre l'equilibrio (divario Elo: "+gap+" punti)."+mktTxt,valEdge>=.04);
+  }
+
+  /* passaggio turno */
+  if(knockout){
+    const adv=advanceLive(oc,eH,eA);
+    const aFav=adv.h>=adv.a?{n:nh,p:adv.h}:{n:na,p:adv.a};
+    P("Passaggio turno",aFav.n+" passa",aFav.p,"Include supplementari (X al 90' nel "+pct(oc.d)+" dei casi, giocati a ritmo ridotto) e rigori quasi alla pari: il vantaggio di "+aFav.n+" si diluisce ma resta.");
+  }
+
+  /* over/under 2.5 */
+  const o25=overUnder(M,2.5,0);
+  if(o25>=.5) P("Gol totali","Over 2.5",o25,"Attesi "+tot.toFixed(1)+" gol: attacchi in fiducia ("+nh+" "+lHe.toFixed(1)+", "+na+" "+lAe.toFixed(1)+") e partita che può aprirsi.");
+  else P("Gol totali","Under 2.5",1-o25,"Solo "+tot.toFixed(1)+" gol attesi: "+(knockout?"fase a eliminazione diretta, chi sbaglia esce — ":"")+"ritmi controllati e poche concessioni.");
+
+  /* GG/NG */
+  const gg=btts(M);
+  const weakAtk=lHe<=lAe?{n:nh,l:lHe}:{n:na,l:lAe};
+  if(gg>=.5) P("GG / NG","Gol (GG)",gg,"Entrambe producono abbastanza: anche l'attacco meno prolifico ("+weakAtk.n+") vale "+weakAtk.l.toFixed(1)+" gol attesi, quota GG sopra il 50%.");
+  else P("GG / NG","No Gol (NG)",1-gg,"L'attacco di "+weakAtk.n+" produce appena "+weakAtk.l.toFixed(1)+" gol attesi: probabile che almeno una resti a secco.");
+
+  /* risultato esatto */
+  const ts=topScores(M,1)[0];
+  P("Risultato esatto",ts[0]+" – "+ts[1],ts[2],"Punteggio singolo più probabile della matrice Poisson (con correzione Dixon-Coles sui punteggi bassi)"+(cal?", calibrata sui prezzi Polymarket":"")+".");
+
+  /* marcatore */
+  const list=SCORERS[fav.team];
+  if(list&&list.length){
+    const [pn,sh]=list[0];
+    const pg=1-Math.exp(-fav.l*sh);
+    P("Marcatore",pn+" segna",pg,pn+" concentra circa il "+Math.round(sh*100)+"% dei gol attesi di "+fav.n+" ("+fav.l.toFixed(1)+" di squadra): è il riferimento offensivo della partita.");
+  }
+
+  /* corner */
+  const c=cornersModel(eH,eA,lHe,lAe);
+  const domTxt=c.lH-c.lA>=1.5?nh+" dovrebbe fare la partita ("+c.lH.toFixed(1)+" angoli attesi contro "+c.lA.toFixed(1)+")":(c.lA-c.lH>=1.5?na+" dovrebbe fare la partita ("+c.lA.toFixed(1)+" angoli attesi contro "+c.lH.toFixed(1)+")":"spinta distribuita ("+c.lH.toFixed(1)+" contro "+c.lA.toFixed(1)+")");
+  if(c.over95>=.5) P("Corner","Over 9.5",c.over95,"Attesi "+c.tot.toFixed(1)+" angoli totali: "+domTxt+".");
+  else P("Corner","Under 9.5",1-c.over95,"Attesi solo "+c.tot.toFixed(1)+" angoli: "+domTxt+".");
+
+  /* cartellini */
+  const cd=cardsModel(eH,eA,e.round);
+  const closeness=1-Math.abs(winExp(eH,eA)-.5)*2;
+  const cardWhy=(closeness>.6?"sfida equilibrata":"divario netto")+(knockout?" da dentro-o-fuori":"")+", "+(closeness>.6?"tanti duelli e falli tattici attesi":"meno nervosismo del solito")+" ("+cd.lam.toFixed(1)+" gialli attesi, rischio rosso "+pct(cd.red)+")";
+  if(cd.over45>=.5) P("Cartellini","Over 4.5 gialli",cd.over45,"Partita "+cardWhy+".");
+  else P("Cartellini","Under 4.5 gialli",1-cd.over45,"Partita "+cardWhy+".");
+
+  /* render */
+  const shown=PRED_MINCONF?picks.filter(p=>p.p>=.6):picks;
+  if(!shown.length) return "";
+  const when=e.date.toLocaleDateString("it-IT",{weekday:"short",day:"numeric",month:"short"})+" "+e.date.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
+  let h='<div class="bk-match"><div class="bk-head"><span><b style="color:var(--txt);font-size:.95rem">'+nh+' – '+na+'</b> · '+(ROUND_IT[e.round]||e.round)+'</span><span>'+when+(cal?' · <span style="color:#b18cff">calibrato PM</span>':'')+'</span></div>';
+  for(const p of shown){
+    const k=e.id+"|"+p.m;
+    const inSlip=!!SLIP[k];
+    h+='<div style="padding:7px 0;border-bottom:1px dashed var(--line)">'+
+       '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><span class="pill">'+p.m+'</span> <b>'+p.pick+'</b> '+confBadge(p.p)+
+       (p.val?' <span class="pill" style="color:var(--acc);border:1px solid var(--acc)">💎 value</span>':'')+
+       '</span><span class="v">'+pct(p.p)+' <span class="mini">(q '+fairOdd(p.p)+')</span> '+
+       '<button class="refresh" style="padding:2px 8px;font-size:.72rem'+(inSlip?';border-color:var(--acc);color:var(--acc)':'')+'" '+
+       'data-k="'+k+'" data-l="'+encodeURIComponent(p.m+": "+p.pick)+'" data-m="'+encodeURIComponent(nh+" – "+na)+'" data-p="'+p.p.toFixed(4)+'" '+
+       'onclick="togglePick(this)">'+(inSlip?"✓ in schedina":"+ schedina")+'</button></span></div>'+
+       '<div class="mini" style="margin-top:3px">'+p.why+'</div></div>';
+  }
+  return h+'</div>';
+}
+function fullPredHTML(){
+  const evs=EVENTS.filter(e=>!e.placeholder&&e.state==="pre").sort((a,b)=>a.date-b.date);
+  if(!evs.length) return '<div class="empty">Nessuna partita confermata in programma al momento.</div>';
+  let h='<div class="round-title" style="margin-top:26px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">🧾 Pronostici completi — '+evs.length+' partite confermate'+
+    '<button class="refresh" onclick="togglePredFilter()">'+(PRED_MINCONF?"mostra tutti i mercati":"solo confidenza ≥60%")+'</button></div>';
+  h+='<div class="mini" style="margin-bottom:12px">Per ogni partita: esito, passaggio turno, gol, GG/NG, risultato esatto, marcatore, corner e cartellini, ciascuno con la motivazione del modello. Probabilità calibrate sui prezzi Polymarket dove disponibili. Sono stime statistiche, non certezze.</div>';
+  h+=slipHTML();
+  for(const e of evs) h+=matchPredBlock(e);
+  return h;
+}
+
+/* ================= NOTIFICHE ================= */
+let NOTIFY=false;
+try{ NOTIFY=localStorage.getItem("wc26_notify")==="1"; }catch(_){}
+function notifyBtnUpdate(){
+  const b=document.getElementById("notifybtn");
+  if(b) b.textContent=(NOTIFY?"🔔":"🔕")+" Notifiche gol";
+}
+async function toggleNotify(){
+  try{
+    if(!NOTIFY){
+      if(typeof Notification==="undefined"){ alert("Notifiche non supportate da questo browser."); return; }
+      const p=await Notification.requestPermission();
+      if(p!=="granted") return;
+      NOTIFY=true;
+    } else NOTIFY=false;
+    try{ localStorage.setItem("wc26_notify",NOTIFY?"1":"0"); }catch(_){}
+    notifyBtnUpdate();
+  }catch(_){}
+}
+function notifyChanges(prev,prevSt){
+  if(!NOTIFY||typeof Notification==="undefined"||Notification.permission!=="granted") return;
+  for(const e of EVENTS){
+    if(e.placeholder) continue;
+    try{
+      if(e.flash)
+        new Notification("⚽ GOL! "+itName(e.h)+" "+e.hs+"–"+e.as+" "+itName(e.a),{body:"Mondiale 2026 · "+e.detail});
+      else if(e.state==="post"&&prevSt[e.id]&&prevSt[e.id]!=="post")
+        new Notification("🏁 Finale: "+itName(e.h)+" "+e.hs+"–"+e.as+" "+itName(e.a),{body:"Mondiale 2026 · "+(ROUND_IT[e.round]||e.round)});
+    }catch(_){}
+  }
+}
+
+/* ================= CONFRONTO TESTA A TESTA ================= */
+let H2H={a:"Spain",b:"France",round:"quarterfinals"};
+function h2hTeams(){
+  const seen=new Set(), out=[];
+  for(const t of Object.keys(ELO)){
+    const n=normTeam(t);
+    if(seen.has(n)) continue;
+    seen.add(n); out.push(t);
+  }
+  return out.sort((x,y)=>itName(x).localeCompare(itName(y),"it"));
+}
+function h2hHTML(){
+  const opts=t=>h2hTeams().map(x=>'<option value="'+encodeURIComponent(x)+'"'+(x===t?" selected":"")+'>'+itName(x)+' ('+getElo(x)+')</option>').join("");
+  const rounds=[["group-stage","Fase a gironi"],["round-of-16","Ottavi"],["quarterfinals","Quarti"],["semifinals","Semifinale"],["final","Finale"]];
+  let h='<div class="round-title">⚔️ Confronto testa a testa</div>';
+  h+='<div class="mini" style="margin-bottom:12px">Simula qualsiasi incrocio, anche ipotetico: scegli le squadre e la fase. Usa i rating Elo correnti (modificabili in ⚙️).</div>';
+  h+='<div class="set-panel" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
+     '<select class="h2h-sel" id="h2ha">'+opts(H2H.a)+'</select><b>vs</b>'+
+     '<select class="h2h-sel" id="h2hb">'+opts(H2H.b)+'</select>'+
+     '<select class="h2h-sel" id="h2hr">'+rounds.map(([v,l])=>'<option value="'+v+'"'+(v===H2H.round?" selected":"")+'>'+l+'</option>').join("")+'</select></div>';
+  const eH=getElo(H2H.a), eA=getElo(H2H.b);
+  const [lH,lA]=lambdas(eH,eA,H2H.round);
+  const M=scoreMatrix(lH,lA), oc=outcomes(M);
+  const fake={id:"h2h",h:H2H.a,a:H2H.b,round:H2H.round,state:"pre",placeholder:false,hs:"0",as:"0",
+    hLogo:"",aLogo:"",date:new Date(),venue:"",city:"",detail:"",clock:"0",completed:false};
+  h+='<div class="detail" style="display:block">'+detailHTML(fake,eH,eA,lH,lA,M,oc,null,pmAligned(fake))+'</div>';
+  return h;
+}
+function bindH2H(){
+  for(const [id,key] of [["h2ha","a"],["h2hb","b"],["h2hr","round"]]){
+    const s=document.getElementById(id);
+    if(s) s.addEventListener("change",()=>{
+      H2H[key]=key==="round"?s.value:decodeURIComponent(s.value);
+      delete SPARK_CACHE["h2h"];
+      render();
+    });
+  }
+  loadSpark("h2h");
+}
+
+/* ================= STORICO PREVISIONI & ACCURATEZZA ================= */
+const LOG_KEY="wc26_predlog";
+function loadLog(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY)||"{}"); }catch(_){ return {}; } }
+function saveLog(l){ try{ localStorage.setItem(LOG_KEY,JSON.stringify(l)); }catch(_){} }
+function updateLog(){
+  const log=loadLog(); let dirty=false;
+  for(const e of EVENTS){
+    if(e.placeholder) continue;
+    if(e.state==="pre" && !log[e.id]){
+      const eH=getElo(e.h), eA=getElo(e.a);
+      const M=scoreMatrix(...lambdas(eH,eA,e.round));
+      const oc=outcomes(M), ts=topScores(M,1)[0];
+      const pm=pmAligned(e);
+      log[e.id]={h:e.h,a:e.a,round:e.round,date:e.date.toISOString(),
+        mw:+oc.w.toFixed(4),md:+oc.d.toFixed(4),ml:+oc.l.toFixed(4),ti:ts[0],tj:ts[1],
+        pm:pm?{h:+pm.h.toFixed(4),d:+pm.d.toFixed(4),a:+pm.a.toFixed(4)}:null};
+      dirty=true;
+    }
+    if(e.state==="post" && log[e.id] && log[e.id].rhs==null){
+      log[e.id].rhs=+e.hs; log[e.id].ras=+e.as; dirty=true;
+    }
+  }
+  if(dirty) saveLog(log);
+}
+function historyHTML(){
+  const log=loadLog();
+  const all=Object.values(log);
+  const settled=all.filter(x=>x.rhs!=null).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const pending=all.length-settled.length;
+  let h='<div class="round-title" style="display:flex;justify-content:space-between;align-items:center">📊 Storico previsioni'+
+        (all.length?'<button class="refresh" id="csvbtn">⬇️ Esporta CSV</button>':'')+'</div>';
+  h+='<div class="mini" style="margin-bottom:14px">Le previsioni vengono <b>congelate</b> alla prima apertura della pagina prima del match e confrontate col risultato reale. Salvate solo su questo dispositivo.</div>';
+  if(!all.length) return h+'<div class="empty">Nessuna previsione registrata ancora: apri la pagina prima delle prossime partite e torna qui dopo i risultati.</div>';
+  if(settled.length){
+    let ok1x2=0, okPM=0, okExact=0, brier=0, brierPM=0, nPM=0;
+    for(const x of settled){
+      const real=x.rhs>x.ras?"w":(x.rhs<x.ras?"l":"d");
+      const pick=x.mw>=x.md&&x.mw>=x.ml?"w":(x.ml>=x.md?"l":"d");
+      if(pick===real) ok1x2++;
+      if(x.ti===x.rhs&&x.tj===x.ras) okExact++;
+      const I={w:real==="w"?1:0,d:real==="d"?1:0,l:real==="l"?1:0};
+      brier+=(x.mw-I.w)**2+(x.md-I.d)**2+(x.ml-I.l)**2;
+      if(x.pm){ nPM++;
+        const pickPM=x.pm.h>=x.pm.d&&x.pm.h>=x.pm.a?"w":(x.pm.a>=x.pm.d?"l":"d");
+        if(pickPM===real) okPM++;
+        brierPM+=(x.pm.h-I.w)**2+(x.pm.d-I.d)**2+(x.pm.a-I.l)**2;
+      }
+    }
+    h+='<div class="big3" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">'+
+      '<div class="box"><div class="pct" style="color:var(--acc)">'+ok1x2+'/'+settled.length+'</div><div class="lab">1X2 azzeccati (modello)</div></div>'+
+      (nPM?'<div class="box"><div class="pct" style="color:#b18cff">'+okPM+'/'+nPM+'</div><div class="lab">1X2 azzeccati (Polymarket)</div></div>':'')+
+      '<div class="box"><div class="pct" style="color:var(--warn)">'+okExact+'/'+settled.length+'</div><div class="lab">Risultati esatti</div></div>'+
+      '<div class="box"><div class="pct">'+(brier/settled.length).toFixed(3)+'</div><div class="lab">Brier modello (più basso = meglio)</div></div>'+
+      (nPM?'<div class="box"><div class="pct">'+(brierPM/nPM).toFixed(3)+'</div><div class="lab">Brier Polymarket</div></div>':'')+
+      '</div>';
+    for(const x of settled){
+      const real=x.rhs>x.ras?"w":(x.rhs<x.ras?"l":"d");
+      const pick=x.mw>=x.md&&x.mw>=x.ml?"w":(x.ml>=x.md?"l":"d");
+      const sym={w:"1",d:"X",l:"2"};
+      const hit=pick===real, hitEx=x.ti===x.rhs&&x.tj===x.ras;
+      h+='<div class="champ-row"><span class="pill">'+new Date(x.date).toLocaleDateString("it-IT",{day:"numeric",month:"short"})+'</span>'+
+         '<span class="cn" style="width:auto;flex:1">'+itName(x.h)+' '+x.rhs+'–'+x.ras+' '+itName(x.a)+'</span>'+
+         '<span class="mini">previsto '+sym[pick]+' e '+x.ti+'–'+x.tj+'</span>'+
+         '<span class="cp" style="width:auto">'+(hit?"✅":"❌")+(hitEx?" 🎯":"")+'</span></div>';
+    }
+  } else h+='<div class="empty">Nessuna partita conclusa tra quelle registrate.</div>';
+  if(pending) h+='<div class="mini" style="margin-top:10px">In attesa di risultato: '+pending+' previsioni congelate.</div>';
+  return h;
+}
+function togglePath(el){
+  const p=el.nextElementSibling;
+  if(p&&p.classList.contains("champ-path")) p.style.display=p.style.display==="none"?"block":"none";
+}
+function bindHistory(){
+  const b=document.getElementById("csvbtn");
+  if(b) b.addEventListener("click",exportCSV);
+}
+function exportCSV(){
+  const log=loadLog();
+  const rows=[["data","fase","casa","ospite","p1_modello","pX_modello","p2_modello","pronostico_1X2","risultato_esatto_previsto","p1_polymarket","pX_polymarket","p2_polymarket","risultato_reale","esito_1X2_ok","esatto_ok"]];
+  for(const x of Object.values(log)){
+    const pick=x.mw>=x.md&&x.mw>=x.ml?"1":(x.ml>=x.md?"2":"X");
+    const done=x.rhs!=null;
+    const real=done?(x.rhs>x.ras?"1":(x.rhs<x.ras?"2":"X")):"";
+    rows.push([x.date.slice(0,10),x.round,x.h,x.a,x.mw,x.md,x.ml,pick,x.ti+"-"+x.tj,
+      x.pm?x.pm.h:"",x.pm?x.pm.d:"",x.pm?x.pm.a:"",
+      done?x.rhs+"-"+x.ras:"",done?(pick===real?"SI":"NO"):"",done?((x.ti===x.rhs&&x.tj===x.ras)?"SI":"NO"):""]);
+  }
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(";")).join("\n");
+  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="previsioni_mondiale2026.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+/* copia pronostico negli appunti */
+async function copyPred(ev,id){
+  ev.stopPropagation();
+  let e=EVENTS.find(x=>x.id===id);
+  if(!e&&id==="h2h") e={id:"h2h",h:H2H.a,a:H2H.b,round:H2H.round,state:"pre",placeholder:false,date:new Date()};
+  if(!e) return;
+  const eH=getElo(e.h), eA=getElo(e.a);
+  const [lH,lA]=lambdas(eH,eA,e.round);
+  const mo=outcomes(scoreMatrix(lH,lA));
+  const pm=pmAligned(e);
+  let oc=mo, lHe=lH, lAe=lA;
+  if(pm){
+    let tH=W_MARKET*pm.h+(1-W_MARKET)*mo.w, tD=W_MARKET*pm.d+(1-W_MARKET)*mo.d, tA=W_MARKET*pm.a+(1-W_MARKET)*mo.l;
+    const s=tH+tD+tA; oc={w:tH/s,d:tD/s,l:tA/s};
+    const fit=fitLambdas(oc.w,oc.d,oc.l); lHe=fit.lH; lAe=fit.lA;
+  }
+  const ts=topScores(scoreMatrix(lHe,lAe),3);
+  const txt="⚽ "+itName(e.h)+" vs "+itName(e.a)+" ("+(ROUND_IT[e.round]||e.round)+")\n"+
+    "1: "+pct(oc.w)+" · X: "+pct(oc.d)+" · 2: "+pct(oc.l)+(pm?" (modello+Polymarket)":" (modello)")+"\n"+
+    "Risultati più probabili: "+ts.map(x=>x[0]+"-"+x[1]+" ("+pct(x[2])+")").join(", ")+"\n"+
+    "Stima statistica — non è un consiglio di scommessa";
+  try{
+    await navigator.clipboard.writeText(txt);
+    ev.target.textContent="✅ Copiato!";
+    setTimeout(()=>{ ev.target.textContent="📋 Copia pronostico"; },1600);
+  }catch(_){ ev.target.textContent="⚠️ Copia non riuscita"; }
+}
+
+/* ================= IMPOSTAZIONI ================= */
+function settingsHTML(){
+  const teams=[...new Set(EVENTS.filter(e=>!e.placeholder).flatMap(e=>[e.h,e.a]))]
+    .sort((a,b)=>getElo(b)-getElo(a));
+  let h='<div class="round-title">⚙️ Impostazioni modello</div>';
+  h+='<div class="set-panel"><b>Peso del mercato Polymarket nelle quote calibrate</b>'+
+     '<div class="mini" style="margin:6px 0 10px">0% = solo modello Elo · 100% = solo prezzi di mercato. Vale per il dettaglio partita (risultati esatti, gol, marcatori, corner).</div>'+
+     '<input type="range" id="wslider" min="0" max="100" step="5" value="'+Math.round(W_MARKET*100)+'"> '+
+     '<b id="wlab" style="margin-left:10px">'+Math.round(W_MARKET*100)+'%</b></div>';
+  h+='<div class="round-title">Rating Elo delle squadre <span class="mini">(modificabili — le probabilità si ricalcolano subito)</span></div>';
+  if(!teams.length) return h+'<div class="empty">Nessuna squadra caricata.</div>';
+  h+='<div class="set-panel">';
+  for(const t of teams)
+    h+='<div class="row"><span>'+itName(t)+(ELO_OVR[t]!=null?' <span class="pill">modificato</span>':'')+'</span>'+
+       '<input class="elo-in" data-team="'+encodeURIComponent(t)+'" type="number" step="10" min="1000" max="2400" value="'+getElo(t)+'"></div>';
+  h+='</div><button class="refresh" id="eloreset">↺ Ripristina rating originali e peso 65%</button>'+
+     '<div class="mini" style="margin-top:10px">Le modifiche restano attive finché la pagina è aperta.</div>';
+  return h;
+}
+function bindSettings(){
+  const ws=document.getElementById("wslider");
+  if(ws) ws.addEventListener("input",()=>{
+    W_MARKET=ws.value/100;
+    const l=document.getElementById("wlab"); if(l) l.textContent=ws.value+"%";
+  });
+  document.querySelectorAll(".elo-in").forEach(inp=>inp.addEventListener("change",()=>{
+    const t=decodeURIComponent(inp.dataset.team), v=parseInt(inp.value);
+    if(!isNaN(v)&&v>=1000&&v<=2400) ELO_OVR[t]=v;
+  }));
+  const rb=document.getElementById("eloreset");
+  if(rb) rb.addEventListener("click",()=>{ ELO_OVR={}; W_MARKET=.65; render(); });
+}
+
+/* ================= CONTROLLI & AVVIO ================= */
+document.getElementById("tabs").addEventListener("click",ev=>{
+  const t=ev.target.closest(".tab"); if(!t) return;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active"); FILTER=t.dataset.f; render();
+});
+document.getElementById("search").addEventListener("input",ev=>{ SEARCH=ev.target.value.trim(); render(); });
+setInterval(renderNext,30000);
+notifyBtnUpdate();
+loadData();
+</script>
+</body>
+</html>
